@@ -1,0 +1,50 @@
+# -------------------------------------------------------------------------------------
+# PEP 621 - used by pip, build, etc.
+# -------------------------------------------------------------------------------------
+[project]
+name = "zappy"
+version = "0.1.0"
+description = "Open-source IP lookup dashboard for AV/IT integrators. Filter by project, network type, and much more . Deploy in minutes!"
+authors = [
+    {name = "Michael Hansen",email = "michaelhansen19@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+
+
+dependencies = [
+    "streamlit>=1.38",
+    "pandas>=2.2",
+    "pillow>=10.4"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "black>=24.8",
+    "ruff>=0.6",
+    "mypy>=1.11"
+]
+
+[project.scripts]
+zappy = "zappy.app:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+# ──────────────────────────────────────────────────────────────
+# Poetry-specific config — REQUIRED for `poetry install`, `poetry add`, etc.
+# ──────────────────────────────────────────────────────────────
+[tool.poetry]
+packages = [{ include = "zappy", from = "src" }]
+include = ["src/zappy/pages/**/*.py"]
+
+
+
+[tool.poetry.dependencies]
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.2"
+

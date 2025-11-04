@@ -1,0 +1,25 @@
+job_id,job_property,device_name,product_number,device_type,device_location,ip_address,mac_address,subnet_mask,default_gateway,dns_1,dns_2,serial_number,admin_username,admin_password,multicast_label_1,multicast_address_1,multicast_port_1,multicast_label_2,multicast_address_2,multicast_port_2,notes
+J1001,Grand Hotel,Main Router,RT6600,Control,Server Room,192.168.1.1,00:1a:2b:3c:4d:5e,255.255.255.0,192.168.1.254,8.8.8.8,8.8.4.4,RT123456,admin,hotel123,Video,239.1.1.1,5000,AUX,239.1.1.2,5001,Central video distribution
+J1001,Grand Hotel,Conference Projector,PJ-X1,Audiovisual,Conference A,192.168.1.10,00:1a:2b:3c:4d:5f,255.255.255.0,192.168.1.254,8.8.8.8,,PJ98765,proj,projpass,Video,239.1.1.10,5004,,,,HDMI over IP
+J1001,Grand Hotel,Lobby Speaker,SPK-800,Audio,Lobby Ceiling,192.168.1.20,00:1a:2b:3c:4d:60,255.255.255.0,192.168.1.254,,,SPK111,admin,spk123,Audio,239.2.1.1,5100,,,,Background music zone
+J1001,Grand Hotel,Security Camera,CAM-4K,Security,Front Entrance,192.168.1.30,00:1a:2b:3c:4d:61,255.255.255.0,192.168.1.254,,,CAM001,root,camsecure,Video,239.3.1.1,5600,,,,ONVIF stream
+J1001,Grand Hotel,Access Controller,AC-200,Access Control,Reception Desk,192.168.1.40,00:1a:2b:3c:4d:62,255.255.255.0,192.168.1.254,,,AC456,admin,access123,,,,,,,"Door 1 & 2"
+J1001,Grand Hotel,Intercom Panel,IP-INT,Intercom,Concierge,192.168.1.50,00:1a:2b:3c:4d:63,255.255.255.0,192.168.1.254,,,INT789,operator,intpass,,,,,,,"SIP: concierge@hotel"
+J1001,Grand Hotel,Surveillance NVR,NVR-32,Surveillance,Security Office,192.168.1.60,00:1a:2b:3c:4d:64,255.255.255.0,192.168.1.254,,,NVR001,admin,nvr2025,,,,,,,"32-channel, RAID6"
+J1001,Grand Hotel,Video Switcher,VS-16,Video,Control Room,192.168.1.70,00:1a:2b:3c:4d:65,255.255.255.0,192.168.1.254,,,VS222,tech,vidswitch,Streaming,239.4.1.1,6000,,,,Multiview output
+J1002,Tech Campus,Core Switch,SW-9300,Control,Data Center A,10.10.1.1,00:1a:2b:3c:4d:70,255.255.255.0,10.10.1.254,1.1.1.1,1.0.0.1,SW93001,netadmin,switch!@#,Video,239.10.1.1,7000,,,,L3 routing enabled
+J1002,Tech Campus,Lab Projector,PJ-LAB,Audiovisual,Lab 101,10.10.1.10,00:1a:2b:3c:4d:71,255.255.255.0,10.10.1.254,,,PJLAB1,user,labproj,,,,,,,"4K, ceiling mount"
+J1002,Tech Campus,PA Amplifier,AMP-500,Audio,Auditorium,10.10.1.20,00:1a:2b:3c:4d:72,255.255.255.0,10.10.1.254,,,AMP500,sound,pa123,Audio,239.11.1.1,7100,,,,70V line
+J1002,Tech Campus,PTZ Camera,CAM-PTZ,Security,Auditorium Stage,10.10.1.30,00:1a:2b:3c:4d:73,255.255.255.0,10.10.1.254,,,PTZ01,ptz,securecam,Video,239.12.1.1,7200,,,,Preset 1 = stage
+J1002,Tech Campus,Door Reader,DR-300,Access Control,Lab 101 Door,10.10.1.40,00:1a:2b:3c:4d:74,255.255.255.0,10.10.1.254,,,DR300,card,entry123,,,,,,,"MIFARE + PIN"
+J1002,Tech Campus,VoIP Phone,VP-600,Intercom,Reception,10.10.1.50,00:1a:2b:3c:4d:75,255.255.255.0,10.10.1.254,,,VP600,front,phone456,,,,,,,"Ext: 100"
+J1002,Tech Campus,DVR Recorder,DVR-16,Surveillance,Security Booth,10.10.1.60,00:1a:2b:3c:4d:76,255.255.255.0,10.10.1.254,,,DVR16,guard,dvrpass,,,,,,,"16 analog + IP"
+J1002,Tech Campus,Matrix Switcher,MX-8x8,Video,AV Closet,10.10.1.70,00:1a:2b:3c:4d:77,255.255.255.0,10.10.1.254,,,MX88,avtech,matrix!@#,Video,239.13.1.1,7300,,,,8x8 HDMI
+J1003,Corporate HQ,Firewall Appliance,FW-5000,Control,Server Room B,172.16.1.1,00:1a:2b:3c:4d:80,255.255.255.0,172.16.1.254,8.8.8.8,8.8.4.4,FW50001,secadmin,firewall123,,,,,,,"Site-to-site VPN"
+J1003,Corporate HQ,Boardroom Display,DS-98,Audiovisual,Boardroom,172.16.1.10,00:1a:2b:3c:4d:81,255.255.255.0,172.16.1.254,,,DS98,board,display456,Video,239.20.1.1,8000,,,,Crestron control
+J1003,Corporate HQ,Ceiling Mic,MIC-360,Audio,Boardroom,172.16.1.20,00:1a:2b:3c:4d:82,255.255.255.0,172.16.1.254,,,MIC360,audio,mic123,Audio,239.21.1.1,8100,,,,Dante enabled
+J1003,Corporate HQ,Executive Camera,CAM-EXEC,Security,CEO Office,172.16.1.30,00:1a:2b:3c:4d:83,255.255.255.0,172.16.1.254,,,EXEC01,exec,secure123,Video,239.22.1.1,8200,,,,Auto-tracking
+J1003,Corporate HQ,Badge Reader,BR-100,Access Control,Executive Wing,172.16.1.40,00:1a:2b:3c:4d:84,255.255.255.0,172.16.1.254,,,BR100,hr,hraccess,,,,,,,"Prox + biometric"
+J1003,Corporate HQ,Helpdesk Phone,HD-100,Intercom,IT Helpdesk,172.16.1.50,00:1a:2b:3c:4d:85,255.255.255.0,172.16.1.254,,,HD100,help,helpdesk123,,,,,,,"Ext: 911"
+J1003,Corporate HQ,NAS Storage,NAS-48TB,Surveillance,IT Closet,172.16.1.60,00:1a:2b:3c:4d:86,255.255.255.0,172.16.1.254,,,NAS01,storage,store456,,,,,,,"Retention: 90 days"
+J1003,Corporate HQ,Encoder Box,ENC-4K,Video,Media Room,172.16.1.70,00:1a:2b:3c:4d:87,255.255.255.0,172.16.1.254,,,ENC4K,media,encpass,Streaming,239.23.1.1,8300,,,,NDI output

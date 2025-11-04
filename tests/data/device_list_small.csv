@@ -1,0 +1,4 @@
+job_id,job_property,device_name,product_number,device_type,device_location,ip_address,mac_address,subnet_mask,default_gateway,dns_1,dns_2,serial_number,admin_username,admin_password,multicast_label_1,multicast_address_1,multicast_port_1,multicast_label_2,multicast_address_2,multicast_port_2,notes
+J1001,Grand Hotel,Main Router,RT6600,Control,Server Room,192.168.1.1,00:1a:2b:3c:4d:5e,255.255.255.0,192.168.1.254,8.8.8.8,8.8.4.4,ABC123456,admin,pass123,Video,239.1.1.1,5000,AUX,239.1.1.2,5001,Main video feed
+J1001,Grand Hotel,Projector 1,PJ-X1,Audiovisual,Conference A,192.168.1.10,00:1a:2b:3c:4d:5f,255.255.255.0,192.168.1.254,,,SN98765,user,secret,,,,""
+J1002,Office Tower,Door Controller,DC-100,Access Control,Lobby,10.0.0.50,00:1a:2b:3c:4d:60,255.255.255.0,10.0.0.1,,,SN11111,admin,door123,,,,,,,"Emergency override"
