@@ -40,11 +40,13 @@ build-backend = "poetry.core.masonry.api"
 packages = [{ include = "zappy", from = "src" }]
 include = ["src/zappy/pages/**/*.py"]
 
-
-
 [tool.poetry.dependencies]
 
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.2"
 
+[tool.pytest.ini_options]
+addopts = "-v"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
