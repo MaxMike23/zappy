@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+
+
+# Virtual environments
+.env
+.venv
+venv/
+
+# Poetry
+*.egg-info/
+dist/
+build/
+
+# Streamlit
+.streamlit/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
