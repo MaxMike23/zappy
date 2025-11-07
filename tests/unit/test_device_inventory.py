@@ -29,5 +29,5 @@ def test_validate_mac():
     from zappy.core.device_inventory import validate_mac
     assert validate_mac("aa:bb:cc:dd:ee:ff") is True
     assert validate_mac("AA:BU:CC:DD:EE:F4") is False
-    assert validate_mac("aa:bb:cg:dd:ee:ff") is True
-    assert validate_mac("AA:BI:CC:DD:EE:FF") is True
+    assert validate_mac("aa:bb:cg:dd:ee:ff") is False
+    assert validate_mac("AA:BI:CC:DD:EE:FF") is False
