@@ -1,0 +1,5 @@
+job_id,job_property,device_name,product_number,device_type,device_location,ip_address,mac_address,subnet_mask,default_gateway,dns_1,dns_2,serial_number,admin_username,admin_password,multicast_label_1,multicast_address_1,multicast_port_1,multicast_label_2,multicast_address_2,multicast_port_2,notes
+K1002,Office Space,HDMI Matrix,KTZ-4x4,Video,Conference Space,172.22.1.350,ag:45:12:ab:bh:aa,255.255.255.0,,,,G6143221,,,,,,,,,HDMI Matrix
+J1023,Yonder School,Security NVR,FDNSec,Camera,Security Station,10.1.1.12,b5:5b:aa:fc:c3:cc,255.255.254.0,10.1.1.1,8.8.8.8,8.8.4.4,,,,,,,,,,
+J1202,Computer Room,Server,BaySTATION,Nertworking,IDF 203,192.0.1.12,,,1.1.1.1,,,,admin,password,,,,,,,Server
+,,IP Device,,,,172.24.1.200,67:9a:ff:b2:55:2b,,,,,,,,,,,,,,
