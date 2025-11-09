@@ -1,6 +1,6 @@
 import ipaddress
 from zappy.core.device_inventory import *
-from typing import Optional, Tuple, Dict, Any, List
+from typing import Optional, Union, Tuple, Dict, Any, List
 
 
 def subnet_mask_to_cidr(subnet_mask: str) -> Tuple[int, bool]:
@@ -23,7 +23,7 @@ def subnet_mask_to_cidr(subnet_mask: str) -> Tuple[int, bool]:
         return cidr, False
     
     
-def cidr_to_subnet_mask(cidr_prefix: int) -> str:
+def cidr_to_subnet_mask(cidr_prefix: Union[int, str]) -> str:
     """
     Converts CIDR notation to a dotted decimal subnet mask
 
@@ -34,7 +34,7 @@ def cidr_to_subnet_mask(cidr_prefix: int) -> str:
         str: The subnet mask in dotted decimal format (e.g., "255.255.255.0").
     """
     try:
-        network = ipaddress.IPv4Network(f"0.0.0.0/{cidr_prefix}")
+        network = ipaddress.IPv4Network(f"0.0.0.0/{int(cidr_prefix)}")
         return str(network.netmask)
     except ValueError as e:
         return f"Error: Invalid CIDR prefix - {e}"
