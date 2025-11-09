@@ -150,4 +150,89 @@ class DeviceInventory:
         self.errors = []
         valid = True
         
+        # --- Column Validation ---
+        missing_cols = [col for col in self.REQUIRED_COLUMNS if col not in df.columns]
+        if missing_cols:
+            self.errors.append(f"Missing required columns: {','.join(missing_cols)}")
+            valid = False
+            
+        # Add missing optional columns
+        for col in self.OPTIONAL_BUT_DEFAULT_TRUE + ["dns_1", "dns_2", "notes"]:
+            if col not in df.columns:
+                df[col] = ""
+                
+        # --- Row-by-row validation ---
+        for idx, row in df.iterrows():
+            row_errors = []
+            
+            # Required fields in row
+            for col in self.REQUIRED_COLUMNS:
+                if pd.isna(row[col]) or str(row[col]).strip() == "":
+                    row_errors.append(f"Row {idx+2}: {col} is required")
+                    
+            # --- Job ID Validation ---
+            if not validate_job_id(str(row.get("job_id", ""))):
+                row_errors.append(f"Row {idx+2}: 'job_id' must be JXXXX or JXXXX-XX format")
+                
+            # --- IP Address Validation ---
+            for field in ["ip_address", "subnet_mask", "default_gateway"]:
+                if not validate_ip(str(row.get(field, ""))):
+                    row_errors.append(f"Row {idx+2}: Invalid IPv4 address in '{field}'")
+            
+            # --- Subnet Mask Validation ---
+            if not validate_subnet_mask(str(row.get("subnet_mask"))):
+                row_errors.append(f"Row {idx+2}: Invalid subnet mask address in 'subnet_mask'")
+                
+            # --- MAC Address Validation ---
+            if not validate_mac(str(row.get("mac_address", ""))):
+                row_errors.append(f"Row {idx+2}: Invalid MAC address (use aa:bb:cc:dd:ee:ff)")
+            
+            # --- Device Type Validation ---
+            dt = str(row.get("device_type", ""))
+            if dt and dt not in DEVICE_TYPES:
+                row_errors.append(f"Row {idx+2}: 'device_type' must be one of: {', '.join(DEVICE_TYPES)}")
+                
+            # --- Multicast 1 Validation ---
+            if pd.notna(row.get("multicast_address_1")) and str(row["multicast_address_1"]).strip():
+                if validate_ip(str(row["multicast_address_1"])):
+                    if not validate_multicast_address(str(row["multicast_address_1"])):
+                        row_errors.append(f"Row {idx+2}: Invalid multicast address in 'multicast_address_1'")
+                if not validate_ip(str(row["multicast_address_1"])):
+                    row_errors.append(f"Row {idx+2}: Invalid multicast address in 'multicast_address_1'")
+                if not validate_multicast_port(row.get("multicast_port_1")):
+                    row_errors.append(f"Row {idx+2}: multicast_port_1 must be 1025–65000")
+                label = str(row.get("multicast_label_1", ""))
+                if label not in MULTICAST_LABELS:
+                    row_errors.append(f"Row {idx+2}: multicast_label_1 invalid")        
+            
+            # --- Multicast 2 Validation ---
+            if pd.notna(row.get("multicast_address_2")) and str(row["multicast_address_2"]).strip():
+                if validate_ip(str(row["multicast_address_2"])):
+                    if not validate_multicast_address(str(row["multicast_address_2"])):
+                        row_errors.append(f"Row {idx+2}: Invalid multicast address in 'multicast_address_2'")
+                if not validate_ip(str(row["multicast_address_2"])):
+                    row_errors.append(f"Row {idx+2}: Invalid multicast address in 'multicast_address_2'")
+                if not validate_multicast_port(row.get("multicast_port_2")):
+                    row_errors.append(f"Row {idx+2}: multicast_port_2 must be 1025–65000")
+                label = str(row.get("multicast_label_2", ""))
+                if label not in MULTICAST_LABELS:
+                    row_errors.append(f"Row {idx+2}: multicast_label_2 invalid")
+                    
+            if row_errors:
+                self.errors.extend(row_errors)
+                valid = False
+                
+        if valid:
+            self.df = df
+        return ValidationResult(valid, self.errors)
+    
+    def get_ips(self) -> List[str]:
+        if self.df is None:
+            return
+        return self.df["ip_address"].astype(str).tolist()
+    
+    def export_troubleshoot_csv(self) -> str:
+        if self.df is None:
+            return ""
+        return self.df.to_csv(index=False)
         
