@@ -127,7 +127,7 @@ class ValidationResult:
     
 class DeviceInventory:
     REQUIRED_COLUMNS = [
-        "job_id", "job_property", "device_name", "device_locations", "ip_adddress", "mac_address", "subnet_mask", "default_gateway", "serial_number"
+        "job_id", "job_property", "device_name", "device_locations", "ip_address", "mac_address", "subnet_mask", "default_gateway", "serial_number"
     ]
     
     OPTIONAL_BUT_DEFAULT_TRUE = [
@@ -151,17 +151,17 @@ class DeviceInventory:
         valid = True
         
         # --- Column Validation ---
-        missing_cols = [col for col in self.REQUIRED_COLUMNS if col not in df.columns]
-        if missing_cols:
-            self.errors.append(f"Missing required columns: {','.join(missing_cols)}")
-            valid = False
-            
-        # Add missing optional columns
+        missing = [col for col in self.REQUIRED_COLUMNS if col not in df.columns]
+        if missing:
+            self.errors.append(f"Missing required columns: {', '.join(missing)}")
+            return ValidationResult(False, self.errors)  # ← EARLY RETURN
+
+        # === 2. Add optional columns ===
         for col in self.OPTIONAL_BUT_DEFAULT_TRUE + ["dns_1", "dns_2", "notes"]:
             if col not in df.columns:
                 df[col] = ""
-                
-        # --- Row-by-row validation ---
+
+        # === 3. Now safe to validate rows ===
         for idx, row in df.iterrows():
             row_errors = []
             
@@ -192,31 +192,25 @@ class DeviceInventory:
             if dt and dt not in DEVICE_TYPES:
                 row_errors.append(f"Row {idx+2}: 'device_type' must be one of: {', '.join(DEVICE_TYPES)}")
                 
-            # --- Multicast 1 Validation ---
-            if pd.notna(row.get("multicast_address_1")) and str(row["multicast_address_1"]).strip():
-                if validate_ip(str(row["multicast_address_1"])):
-                    if not validate_multicast_address(str(row["multicast_address_1"])):
-                        row_errors.append(f"Row {idx+2}: Invalid multicast address in 'multicast_address_1'")
-                if not validate_ip(str(row["multicast_address_1"])):
-                    row_errors.append(f"Row {idx+2}: Invalid multicast address in 'multicast_address_1'")
+            # Multicast 1
+            m1 = str(row.get("multicast_address_1", "")).strip()
+            if m1:
+                if not validate_ip(m1) or not validate_multicast_address(m1):
+                    row_errors.append(f"Row {idx+2}: 'multicast_address_1' invalid")
                 if not validate_multicast_port(row.get("multicast_port_1")):
-                    row_errors.append(f"Row {idx+2}: multicast_port_1 must be 1025–65000")
-                label = str(row.get("multicast_label_1", ""))
-                if label not in MULTICAST_LABELS:
-                    row_errors.append(f"Row {idx+2}: multicast_label_1 invalid")        
-            
-            # --- Multicast 2 Validation ---
-            if pd.notna(row.get("multicast_address_2")) and str(row["multicast_address_2"]).strip():
-                if validate_ip(str(row["multicast_address_2"])):
-                    if not validate_multicast_address(str(row["multicast_address_2"])):
-                        row_errors.append(f"Row {idx+2}: Invalid multicast address in 'multicast_address_2'")
-                if not validate_ip(str(row["multicast_address_2"])):
-                    row_errors.append(f"Row {idx+2}: Invalid multicast address in 'multicast_address_2'")
+                    row_errors.append(f"Row {idx+2}: 'multicast_port_1' must be 1025–65000")
+                if str(row.get("multicast_label_1", "")).strip() not in MULTICAST_LABELS:
+                    row_errors.append(f"Row {idx+2}: 'multicast_label_1' invalid")
+
+            # Multicast 2
+            m2 = str(row.get("multicast_address_2", "")).strip()
+            if m2:
+                if not validate_ip(m2) or not validate_multicast_address(m2):
+                    row_errors.append(f"Row {idx+2}: 'multicast_address_2' invalid")
                 if not validate_multicast_port(row.get("multicast_port_2")):
-                    row_errors.append(f"Row {idx+2}: multicast_port_2 must be 1025–65000")
-                label = str(row.get("multicast_label_2", ""))
-                if label not in MULTICAST_LABELS:
-                    row_errors.append(f"Row {idx+2}: multicast_label_2 invalid")
+                    row_errors.append(f"Row {idx+2}: 'multicast_port_2' must be 1025–65000")
+                if str(row.get("multicast_label_2", "")).strip() not in MULTICAST_LABELS:
+                    row_errors.append(f"Row {idx+2}: 'multicast_label_2' invalid")
                     
             if row_errors:
                 self.errors.extend(row_errors)
@@ -227,12 +221,34 @@ class DeviceInventory:
         return ValidationResult(valid, self.errors)
     
     def get_ips(self) -> List[str]:
+        return self.df["ip_address"].astype(str).tolist() if self.df is not None else []
+    
+    def get_ips_with_names(self) -> List[dict]:
         if self.df is None:
-            return
-        return self.df["ip_address"].astype(str).tolist()
+            return []
+        return [
+            {
+                "ip": str(row["ip_address"]),
+                "device": f"{row['job_id']} - {row['device_name']} ({row['device_locations']})"
+            }
+            for _, row in self.df.iterrows()
+        ]
+    
+    def get_ips_with_details(self) -> List[dict]:
+        if self.df is None:
+            return []
+    
+        return [
+            {
+                "job_id": str(row["job_id"]),
+                "device": str(row["device_name"]).strip() or "Unnamed",
+                "ip": str(row["ip_address"]),
+                "location": str(row["device_locations"]).strip(),
+                "type": str(row.get("device_type", "")).strip()
+            }
+            for _, row in self.df.iterrows()
+        ]
     
     def export_troubleshoot_csv(self) -> str:
-        if self.df is None:
-            return ""
-        return self.df.to_csv(index=False)
+        return self.df.to_csv(index=False) if self.df is not None else ""
         
