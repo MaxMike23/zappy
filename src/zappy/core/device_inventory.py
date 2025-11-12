@@ -267,7 +267,7 @@ class DeviceInventory:
         if self.df is None:
             return pd.DataFrame()
         cols = [
-            "job_id", "job_property", "device_name", "device_location", "device_type",
+            "job_property", "device_name", "device_location", "device_type",
             "ip_address", "mac_address", "subnet_mask", "default_gateway", "serial_number"
         ]
         return self.df[cols].copy()
