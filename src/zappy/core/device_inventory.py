@@ -29,11 +29,8 @@ def validate_job_id(value: str) -> bool:
     """
     if not value or not isinstance(value, str):
         return False
-    
     value = value.strip().upper()
-    
     pattern = r"^J\d{4}(-\d{2})?$"
-    
     return bool(re.fullmatch(pattern, value))
 
 
@@ -102,21 +99,20 @@ def validate_multicast_address(multicast: str) -> bool:
         return False
 
 
-def validate_multicast_port(port: Any) -> bool:
+def validate_serial_number(val: Any) -> bool:
     """
-    Returns True if port is recognized as any available port between 1025 and 65000
+    Returns True if serial number is present in field
 
     Args:
-        port (Any): Port number as read from CSV file
+        port (Any): Serial number as read from CSV file
 
     Returns:
-        bool: Returns True if passed, False if not in range of available ports
+        bool: Returns True if passed, False if any but a string of integer
     """
-    try:
-        p = int(port)
-        return 1025 <= p <= 65000
-    except (ValueError, TypeError):
+    if pd.isna(val):
         return False
+    s = str(val).strip()
+    return bool(s)
 
     
 @dataclass
@@ -127,11 +123,11 @@ class ValidationResult:
     
 class DeviceInventory:
     REQUIRED_COLUMNS = [
-        "job_id", "job_property", "device_name", "device_locations", "ip_address", "mac_address", "subnet_mask", "default_gateway", "serial_number"
+        "job_id", "job_property", "device_name", "device_location", "device_type","ip_address", "mac_address", "subnet_mask", "default_gateway", "serial_number"
     ]
     
-    OPTIONAL_BUT_DEFAULT_TRUE = [
-        "product_number", "device_type", "admin_username", "admin_password"
+    OPTIONAL_COLUMNS= [
+        "dns_1", "dns_2", "notes"
     ]
     
     def __init__(self, csv_path: Optional[Path] = None):
@@ -141,7 +137,15 @@ class DeviceInventory:
             self.load_and_validate(csv_path)
             
     def load_and_validate(self, csv_path: Path) -> ValidationResult:
-        """Load CSV and validate every row against the desired specs"""
+        """
+        Loads CSV and validates every row against the desired specs
+
+        Args:
+            csv_path (Path): CSV file being validated
+
+        Returns:
+            ValidationResult: Returns the ValidationResult class if the validation has passed or failed and all the errors found
+        """
         try:
             df = pd.read_csv(csv_path)
         except Exception as e:
@@ -156,12 +160,14 @@ class DeviceInventory:
             self.errors.append(f"Missing required columns: {', '.join(missing)}")
             return ValidationResult(False, self.errors)  # ← EARLY RETURN
 
-        # === 2. Add optional columns ===
-        for col in self.OPTIONAL_BUT_DEFAULT_TRUE + ["dns_1", "dns_2", "notes"]:
+        # === Add optional columns ===
+        for col in self.OPTIONAL_COLUMNS:
             if col not in df.columns:
                 df[col] = ""
+        
+        df = df.fillna("")
 
-        # === 3. Now safe to validate rows ===
+        # === Now safe to validate rows ===
         for idx, row in df.iterrows():
             row_errors = []
             
@@ -186,31 +192,15 @@ class DeviceInventory:
             # --- MAC Address Validation ---
             if not validate_mac(str(row.get("mac_address", ""))):
                 row_errors.append(f"Row {idx+2}: Invalid MAC address (use aa:bb:cc:dd:ee:ff)")
+                
+            # --- Serial Number Validation ---
+            if not validate_serial_number(row.get("serial_number")):
+                row_errors.append(f"Row {idx+2}: 'serial_number' required")
             
             # --- Device Type Validation ---
             dt = str(row.get("device_type", ""))
             if dt and dt not in DEVICE_TYPES:
                 row_errors.append(f"Row {idx+2}: 'device_type' must be one of: {', '.join(DEVICE_TYPES)}")
-                
-            # Multicast 1
-            m1 = str(row.get("multicast_address_1", "")).strip()
-            if m1:
-                if not validate_ip(m1) or not validate_multicast_address(m1):
-                    row_errors.append(f"Row {idx+2}: 'multicast_address_1' invalid")
-                if not validate_multicast_port(row.get("multicast_port_1")):
-                    row_errors.append(f"Row {idx+2}: 'multicast_port_1' must be 1025–65000")
-                if str(row.get("multicast_label_1", "")).strip() not in MULTICAST_LABELS:
-                    row_errors.append(f"Row {idx+2}: 'multicast_label_1' invalid")
-
-            # Multicast 2
-            m2 = str(row.get("multicast_address_2", "")).strip()
-            if m2:
-                if not validate_ip(m2) or not validate_multicast_address(m2):
-                    row_errors.append(f"Row {idx+2}: 'multicast_address_2' invalid")
-                if not validate_multicast_port(row.get("multicast_port_2")):
-                    row_errors.append(f"Row {idx+2}: 'multicast_port_2' must be 1025–65000")
-                if str(row.get("multicast_label_2", "")).strip() not in MULTICAST_LABELS:
-                    row_errors.append(f"Row {idx+2}: 'multicast_label_2' invalid")
                     
             if row_errors:
                 self.errors.extend(row_errors)
@@ -221,20 +211,38 @@ class DeviceInventory:
         return ValidationResult(valid, self.errors)
     
     def get_ips(self) -> List[str]:
+        """
+        Returns a list of IP addresses from the loaded CSV 
+
+        Returns:
+            List[str]: List of IP addresses
+        """
         return self.df["ip_address"].astype(str).tolist() if self.df is not None else []
     
     def get_ips_with_names(self) -> List[dict]:
+        """
+        Returns a list of IP addresses plus the location and the device name that it is associated with from the loaded CSV 
+
+        Returns:
+            List[dict]: List of IP addresses with its associated device and location
+        """
         if self.df is None:
             return []
         return [
             {
                 "ip": str(row["ip_address"]),
-                "device": f"{row['job_id']} - {row['device_name']} ({row['device_locations']})"
+                "device": f"{row['job_id']} - {row['device_name']} ({row['device_location']})"
             }
             for _, row in self.df.iterrows()
         ]
     
     def get_ips_with_details(self) -> List[dict]:
+        """
+        Returns a list of IP addresses plus all the device information associated with from the loaded CSV
+
+        Returns:
+            List[dict]: List of IP addresses with its all of the device information
+        """
         if self.df is None:
             return []
     
@@ -243,11 +251,26 @@ class DeviceInventory:
                 "job_id": str(row["job_id"]),
                 "device": str(row["device_name"]).strip() or "Unnamed",
                 "ip": str(row["ip_address"]),
-                "location": str(row["device_locations"]).strip(),
+                "location": str(row["device_location"]).strip(),
                 "type": str(row.get("device_type", "")).strip()
             }
             for _, row in self.df.iterrows()
         ]
+    
+    def get_display_df(self) -> pd.DataFrame:
+        """
+        Return only the columns we want to show to the Streamlit UI.
+        
+        Returns:
+            pd.Dataframe: A dataframe object that has all the information from the load CSV
+        """
+        if self.df is None:
+            return pd.DataFrame()
+        cols = [
+            "job_id", "job_property", "device_name", "device_location", "device_type",
+            "ip_address", "mac_address", "subnet_mask", "default_gateway", "serial_number"
+        ]
+        return self.df[cols].copy()
     
     def export_troubleshoot_csv(self) -> str:
         return self.df.to_csv(index=False) if self.df is not None else ""
