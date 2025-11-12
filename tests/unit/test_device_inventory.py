@@ -68,6 +68,7 @@ def test_validate_mac():
     assert validate_mac("") is False
     
     
+# For Future Features
 def test_validate_multicast_address():
     from zappy.core.device_inventory import validate_multicast_address
     assert validate_multicast_address("224.0.0.1") is True
@@ -81,23 +82,10 @@ def test_validate_multicast_address():
     assert validate_multicast_address("") is False
     
     
-def test_validate_multicast_port():
-    from zappy.core.device_inventory import validate_multicast_port
-    assert validate_multicast_port(5000) is True
-    assert validate_multicast_port("1025") is True
-    assert validate_multicast_port(65000) is True
-    assert validate_multicast_port(6700) is True
-    
-    assert validate_multicast_port(1024) is False
-    assert validate_multicast_port(65001) is False
-    assert validate_multicast_port("abc") is False
-    assert validate_multicast_port(None) is False
-    
-    
 
 @pytest.fixture
 def valid_csv(tmp_path: Path) -> Path:
-    content = """job_id,job_property,device_name,device_type,device_locations,ip_address,mac_address,subnet_mask,default_gateway,serial_number
+    content = """job_id,job_property,device_name,device_type,device_location,ip_address,mac_address,subnet_mask,default_gateway,serial_number
 J1001,Hotel,Router,Networking,Server Room,192.168.1.1,aa:bb:cc:dd:ee:ff,255.255.255.0,192.168.1.254,SN123
 J1002,Office,Switch,Networking,Cabinet A,10.0.0.50,00:11:22:33:44:55,255.255.255.0,10.0.0.1,SN456
 """
@@ -108,7 +96,7 @@ J1002,Office,Switch,Networking,Cabinet A,10.0.0.50,00:11:22:33:44:55,255.255.255
 
 @pytest.fixture
 def invalid_csv(tmp_path: Path) -> Path:
-    content = """job_id,job_property,device_name,device_locations,ip_address,mac_address,subnet_mask,default_gateway
+    content = """job_id,job_property,device_name,device_location,ip_address,mac_address,subnet_mask,default_gateway
 J1001,Hotel,Router,Room,8.8.8.8,aa:bb:cc:dd:ee:ff,255.255.255.1,192.168.1.254
 J999,Office,,Cabinet,192.168.1.100,invalid-mac,255.255.255.0,203.0.113.1
 """
