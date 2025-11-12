@@ -1,1 +1,1 @@
-job_id,job_property,device_name,product_number,device_type,device_location,ip_address,mac_address,subnet_mask,default_gateway,serial_number,admin_username,admin_password,multicast_label_1,multicast_address_1,multicast_port_1,multicast_label_2,multicast_address_2,multicast_port_2
+job_id,job_property,device_name,product_number,device_type,device_location,ip_address,mac_address,subnet_mask,default_gateway,serial_number,dns_1,dns_2,notes
