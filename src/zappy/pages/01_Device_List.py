@@ -28,6 +28,13 @@ with st.sidebar:
              "ip_address, mac_address, subnet_mask, default_gateway, device_type, serial_number"
     )
 
+    st.download_button(
+        "Download Sample CSV", 
+        data="job_id,job_property,device_name,device_location,ip_address,mac_address,subnet_mask,default_gateway,device_type,serial_number,dns_1,dns_2,notes\n", 
+        file_name="sample_device.csv", 
+        mime="text/csv"
+        )
+
 if not uploaded:
     st.info("Upload a CSV to start")
     st.stop()
