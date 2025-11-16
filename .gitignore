@@ -16,6 +16,9 @@ build/
 # Streamlit
 .streamlit/
 
+# Database
+database/*
+
 # Testing
 .pytest_cache/
 .coverage

@@ -9,6 +9,14 @@ st.set_page_config(page_title="Zappy – Device List", layout="wide")
 st.title("Zappy Device List")
 st.caption("Upload a CSV → instantly get a clean, filterable device table")
 
+# === DATABASE SETUP ===
+DB_DIR = Path("database")
+DB_PATH = DB_DIR / "zappy.db"
+
+# Ensure database folder exists
+if not DB_DIR.exists():
+    DB_DIR.mkdir(exist_ok=True)
+
 
 # === Sidebar – file upload ===
 with st.sidebar:
