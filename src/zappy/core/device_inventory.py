@@ -1,5 +1,6 @@
 import pandas as pd
 import ipaddress
+import sqlite3
 import re
 from pathlib import Path
 from typing import Optional, Dict, Any, List
@@ -271,6 +272,28 @@ class DeviceInventory:
             "ip_address", "mac_address", "subnet_mask", "default_gateway", "serial_number"
         ]
         return self.df[cols].copy()
+    
+    def save_to_db(self, db_path: str = "zappy.db", table_name: str = "devices", replace: bool = True) -> bool:
+        """
+        Save the validated DataFrame to SQLite.
+        - db_path: Path to the DB file (default: zappy.db in project root).
+        - table_name: Table name (default: 'devices').
+        - replace: If True, drop and recreate the table; if False, append.
+        Returns True if successful.
+        """
+        if self.df is None:
+            return False
+
+        try:
+            conn = sqlite3.connect(db_path)
+            if replace:
+                self.df.to_sql(table_name, conn, if_exists='replace', index=False)
+            else:
+                self.df.to_sql(table_name, conn, if_exists='append', index=False)
+            conn.close()
+            return True
+        except Exception as e:
+            return False
     
     def export_troubleshoot_csv(self) -> str:
         return self.df.to_csv(index=False) if self.df is not None else ""
