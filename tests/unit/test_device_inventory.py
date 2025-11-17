@@ -1,3 +1,5 @@
+import sqlite3
+import pandas as pd
 import pytest
 from pathlib import Path
 from zappy.core.device_inventory import DeviceInventory
@@ -141,3 +143,26 @@ def test_missing_columns(tmp_path: Path):
     assert not result.valid
     assert "Missing required columns:" in result.errors[0]
     assert "device_name" in result.errors[0]
+    
+    
+def test_db_folder_created_and_save(tmp_path, monkeypatch, valid_csv):
+    db_dir = tmp_path / "database"
+    db_path = db_dir / "zappy.db"
+
+    orig_save = DeviceInventory.save_to_db
+    def patched_save(self, db_path_str="database/zappy.db", **kwargs):
+        return orig_save(self, str(db_path), **kwargs)
+    monkeypatch.setattr(DeviceInventory, "save_to_db", patched_save)
+
+    inv = DeviceInventory(valid_csv)
+    assert inv.df is not None
+
+    assert inv.save_to_db() is True
+    assert db_dir.exists()
+    assert db_path.exists()
+
+    conn = sqlite3.connect(db_path)
+    df = pd.read_sql("SELECT * FROM devices", conn)
+    conn.close()
+    assert len(df) == 2
+    assert df.iloc[0]["device_name"] == "Router"

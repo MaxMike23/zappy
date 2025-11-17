@@ -285,6 +285,8 @@ class DeviceInventory:
             return False
 
         try:
+            Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+            
             conn = sqlite3.connect(db_path)
             if replace:
                 self.df.to_sql(table_name, conn, if_exists='replace', index=False)
