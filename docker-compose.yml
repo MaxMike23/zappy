@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zappy
+      POSTGRES_USER: zappy_user
+      POSTGRES_PASSWORD: zappy_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zappy_user -d zappy"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://zappy_user:zappy_pass@db:5432/zappy
+      SECRET_KEY: dev-secret-key-change-in-prod
+      JWT_SECRET_KEY: dev-jwt-secret-change-in-prod
+      UPLOAD_FOLDER: /app/uploads
+      CORS_ORIGINS: "http://localhost:5173"
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: flask run --host=0.0.0.0 --port=5000 --debug
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # No VITE_API_URL here — leaving it unset means axios uses relative paths
+    # (/api/...) which Vite proxies server-side to the backend container.
+    # Setting it to http://localhost:5000 would make the browser call the backend
+    # directly, triggering cross-origin CORS preflight and bypassing the proxy.
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  uploads_data:
