@@ -71,6 +71,7 @@ def create_stage():
         sort_order=data.get("sort_order", max_order + 1),
         is_terminal=data.get("is_terminal", False),
         is_success=data.get("is_success", False),
+        stage_requirements=data.get("stage_requirements", {}),
     )
     db.session.add(stage)
     db.session.flush()

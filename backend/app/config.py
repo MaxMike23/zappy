@@ -29,8 +29,15 @@ class ProductionConfig(Config):
     DEBUG = False
 
 
+class TestingConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = "postgresql://zappy_user:zappy_pass@db:5432/zappy_test"
+    JWT_SECRET_KEY = "test-jwt-secret-key"
+
+
 config = {
     "development": DevelopmentConfig,
     "production": ProductionConfig,
+    "testing": TestingConfig,
     "default": DevelopmentConfig,
 }
