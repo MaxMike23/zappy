@@ -5,6 +5,10 @@ import Layout from "@/components/layout/Layout";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import DashboardPage from "@/pages/DashboardPage";
+import ProjectsPage from "@/pages/ProjectsPage";
+import ProjectDetailPage from "@/pages/ProjectDetailPage";
+import WorkOrdersPage from "@/pages/WorkOrdersPage";
+import WorkOrderDetailPage from "@/pages/WorkOrderDetailPage";
 
 /**
  * Route structure:
@@ -34,9 +38,10 @@ export default function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
 
-            {/* Placeholders — replace with feature pages in subsequent phases */}
-            <Route path="/projects"    element={<ComingSoon title="Projects" />} />
-            <Route path="/work-orders" element={<ComingSoon title="Work Orders" />} />
+            <Route path="/projects"        element={<ProjectsPage />} />
+            <Route path="/projects/:id"    element={<ProjectDetailPage />} />
+            <Route path="/work-orders"     element={<WorkOrdersPage />} />
+            <Route path="/work-orders/:id" element={<WorkOrderDetailPage />} />
             <Route path="/time-logs"   element={<ComingSoon title="Time Logs" />} />
             <Route path="/users"       element={<ComingSoon title="Users" />} />
             <Route path="/settings"    element={<ComingSoon title="Settings" />} />

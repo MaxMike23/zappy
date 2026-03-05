@@ -1,27 +1,22 @@
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 
 export default function Layout() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
-    <div style={styles.container}>
-      <Sidebar />
-      <main style={styles.main}>
+    <div className="app-layout">
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+      <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+        ☰
+      </button>
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <main className="app-main">
         <Outlet />
       </main>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    display: "flex",
-    minHeight: "100vh",
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    background: "#F9FAFB",
-  },
-  main: {
-    flex: 1,
-    padding: "32px",
-    overflowY: "auto",
-  },
-};

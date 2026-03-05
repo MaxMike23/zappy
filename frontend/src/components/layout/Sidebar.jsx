@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { to: "/settings",    label: "Settings",     roles: ["company_admin", "superadmin"] },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuth();
 
   if (!user) return null;
@@ -18,7 +18,7 @@ export default function Sidebar() {
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(user.role));
 
   return (
-    <aside style={styles.sidebar}>
+    <aside className={`app-sidebar${isOpen ? " open" : ""}`} style={styles.sidebar}>
       <div style={styles.logo}>Zappy</div>
 
       <nav style={styles.nav}>
@@ -26,6 +26,7 @@ export default function Sidebar() {
           <NavLink
             key={item.to}
             to={item.to}
+            onClick={onClose}
             style={({ isActive }) => ({
               ...styles.navLink,
               ...(isActive ? styles.navLinkActive : {}),
@@ -39,7 +40,7 @@ export default function Sidebar() {
       <div style={styles.userSection}>
         <div style={styles.userName}>{user.full_name}</div>
         <div style={styles.userRole}>{user.role.replace("_", " ")}</div>
-        <button style={styles.logoutBtn} onClick={logout}>
+        <button style={styles.logoutBtn} onClick={() => { onClose?.(); logout(); }}>
           Sign out
         </button>
       </div>
