@@ -22,12 +22,15 @@
 
 **Goal:** The app becomes usable by a real company. Primary day-to-day workflow for office staff and field techs.
 
+**Design approach:** All UI is built responsive from day one — desktop layout (sidebar nav, wide content panels) and smartphone browser layout (bottom nav or hamburger menu, stacked single-column views) in the same codebase. No separate mobile app required; the web app adapts to screen size.
+
 ### 2A — Projects & Work Orders UI
 - Projects list, detail view, create/edit forms
 - Work orders list with filters (stage, priority, assigned tech, date range)
 - Work order detail page: notes thread, file attachments, assigned techs
 - Workflow stage kanban or list view with drag-to-update stage
 - Custom field rendering driven by `workflow_field_definitions`
+- Responsive layout: desktop sidebar + content panel; mobile stacked single-column view
 
 ### 2B — Team Management UI
 - Users list (company-scoped)
@@ -137,14 +140,16 @@ This is what differentiates Zappy from generic field service software.
 
 ---
 
-## Phase 10 — Mobile PWA for Technicians
+## Phase 10 — PWA Enhancements for Field Technicians
 
-**Goal:** Field techs use Zappy on-site from their phone without installing an app.
+**Goal:** Build on the already-responsive mobile web experience with PWA-specific capabilities for on-site use — offline access, installability, and native device integration.
 
-- PWA manifest and service worker
-- Mobile-optimized layouts for WO detail, time logging, and file upload
-- Offline capability: view cached work orders when signal is unavailable
+- PWA manifest and service worker (makes the app installable to home screen)
+- Offline capability: cache and serve work orders when signal is unavailable
+- Background sync: queue time logs and notes offline, push when connection returns
 - GPS location capture for site arrival confirmation
+- Push notifications for work order assignments and status changes
+- Camera integration for faster photo uploads from mobile
 
 ---
 
