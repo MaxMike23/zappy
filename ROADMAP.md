@@ -15,6 +15,7 @@
 - Role-based access control: superadmin, company_admin, manager, technician
 - Docker Compose dev environment (db + backend + frontend)
 - Frontend: Login, Register, stub Dashboard
+- **Company specializations:** `specializations` JSONB array on `Company`; companies declare their trade verticals (Audio/Visual, Security, Access Control, Surveillance/CCTV, Fire Alarm, Smart Home, Home Theater, Lighting Control, Shade Control, Custom Automation, Networking/Low Voltage, Live Sound, Live Video, Staging & Rigging, and more) at registration; validated and stored; returned on `/api/auth/login` and `/api/auth/me`
 
 ---
 
@@ -24,13 +25,13 @@
 
 **Design approach:** All UI is built responsive from day one — desktop layout (sidebar nav, wide content panels) and smartphone browser layout (bottom nav or hamburger menu, stacked single-column views) in the same codebase. No separate mobile app required; the web app adapts to screen size.
 
-### 2A — Projects & Work Orders UI
+### 2A — Projects & Work Orders UI ✅ COMPLETE
 - Projects list, detail view, create/edit forms
-- Work orders list with filters (stage, priority, assigned tech, date range)
+- Work orders list with filters (stage, priority, trade, assigned tech)
 - Work order detail page: notes thread, file attachments, assigned techs
-- Workflow stage kanban or list view with drag-to-update stage
 - Custom field rendering driven by `workflow_field_definitions`
-- Responsive layout: desktop sidebar + content panel; mobile stacked single-column view
+- Responsive layout: desktop sidebar + content panel; mobile hamburger overlay + stacked single-column view
+- **Trade tagging:** projects and work orders each carry a `trade` field (from the shared 15-trade list); filter bar on both list pages; out-of-spec amber warning shown in edit/create forms when the selected trade is not in the company's declared specializations
 
 ### 2B — Team Management UI
 - Users list (company-scoped)
