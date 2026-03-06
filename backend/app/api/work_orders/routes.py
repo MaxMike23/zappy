@@ -51,6 +51,8 @@ def list_work_orders():
         query = query.filter_by(priority=priority)
     if assignee_id := request.args.get("assignee_id"):
         query = query.filter(WorkOrder.assignees.any(User.id == uuid.UUID(assignee_id)))
+    if trade := request.args.get("trade"):
+        query = query.filter_by(trade=trade)
     if search := request.args.get("search"):
         query = query.filter(WorkOrder.title.ilike(f"%{search}%"))
 
@@ -93,6 +95,7 @@ def create_work_order():
         site_zip=data.get("site_zip"),
         site_lat=data.get("site_lat"),
         site_lng=data.get("site_lng"),
+        trade=data.get("trade"),
         custom_fields=data.get("custom_fields", {}),
     )
     db.session.add(work_order)
@@ -162,7 +165,7 @@ def update_work_order(wo_id):
         admin_fields = [
             "title", "description", "priority", "project_id",
             "scheduled_start", "scheduled_end", "site_address", "site_city",
-            "site_state", "site_zip", "site_lat", "site_lng", "is_archived",
+            "site_state", "site_zip", "site_lat", "site_lng", "trade", "is_archived",
         ]
         for field in admin_fields:
             if field in data:

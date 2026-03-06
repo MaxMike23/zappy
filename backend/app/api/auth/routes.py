@@ -66,11 +66,21 @@ def register():
         slug = f"{base_slug}-{counter}"
         counter += 1
 
+    # Validate specializations — only accept known string keys
+    VALID_TRADES = {
+        "av", "security", "access_control", "surveillance", "fire_alarm",
+        "smart_home", "home_theater", "lighting_control", "shade_control",
+        "automation", "networking", "live_sound", "live_video", "staging_rigging", "other",
+    }
+    raw_specs = data.get("specializations", [])
+    specializations = [s for s in raw_specs if isinstance(s, str) and s in VALID_TRADES]
+
     try:
         company = Company(
             name=data["company_name"].strip(),
             slug=slug,
             settings={},
+            specializations=specializations,
         )
         db.session.add(company)
         db.session.flush()  # Get company.id before seeding
@@ -106,6 +116,9 @@ def register():
     }), 201
 
 
+
+
+
 @auth_bp.post("/login")
 def login():
     data = request.get_json()
@@ -134,6 +147,7 @@ def login():
     tokens = _make_tokens(user)
     return jsonify({
         "user": user.to_dict(),
+        "company": user.company.to_dict() if user.company else None,
         **tokens,
     }), 200
 
@@ -174,4 +188,7 @@ def me():
     user = User.query.get(get_current_user_id())
     if not user:
         return jsonify({"error": "User not found"}), 404
-    return jsonify({"user": user.to_dict()}), 200
+    return jsonify({
+        "user": user.to_dict(),
+        "company": user.company.to_dict() if user.company else None,
+    }), 200

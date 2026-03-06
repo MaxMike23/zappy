@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { TRADES, TRADE_LABEL } from "@/constants/trades";
 import { workOrdersApi } from "@/api/workOrders";
 import { workflowApi } from "@/api/workflow";
 import { filesApi } from "@/api/files";
@@ -16,7 +17,6 @@ const EDIT_ROLES      = ["company_admin", "manager", "superadmin"];
 export default function WorkOrderDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const [wo, setWo]               = useState(null);
   const [stages, setStages]       = useState([]);
@@ -43,6 +43,7 @@ export default function WorkOrderDetailPage() {
   const [assigneeIds, setAssigneeIds]           = useState([]);
   const [savingAssignees, setSavingAssignees]   = useState(false);
 
+  const { user, company } = useAuth();
   const canEdit = EDIT_ROLES.includes(user?.role);
   const isTech = user?.role === "technician";
 
@@ -214,6 +215,15 @@ export default function WorkOrderDetailPage() {
                 {PRIORITIES.map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
               </select>
             </EditField>
+            <EditField label="Trade / Specialization">
+              <select style={styles.input} value={editForm.trade || ""} onChange={(e) => setEditForm({ ...editForm, trade: e.target.value })}>
+                <option value="">— none —</option>
+                {TRADES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </select>
+              {editForm.trade && (company?.specializations || []).length > 0 && !(company?.specializations || []).includes(editForm.trade) && (
+                <div style={tradeWarnStyle}>⚠ This trade is not listed under your company's declared specializations.</div>
+              )}
+            </EditField>
             <EditField label="Scheduled Start">
               <input type="datetime-local" style={styles.input} value={editForm.scheduled_start} onChange={(e) => setEditForm({ ...editForm, scheduled_start: e.target.value })} />
             </EditField>
@@ -234,6 +244,7 @@ export default function WorkOrderDetailPage() {
           <div style={styles.infoRow}>
             {wo.description && <p style={{ margin: "0 0 4px", fontSize: 14, color: "#374151" }}>{wo.description}</p>}
             <div style={styles.metaGrid}>
+              {wo.trade && <MetaItem label="Trade" value={TRADE_LABEL[wo.trade] || wo.trade} />}
               {wo.scheduled_start && <MetaItem label="Scheduled" value={formatDateTime(wo.scheduled_start)} />}
               {wo.site_address && <MetaItem label="Site" value={[wo.site_address, wo.site_city, wo.site_state].filter(Boolean).join(", ")} />}
             </div>
@@ -390,6 +401,7 @@ function toEditForm(w) {
     description: w.description || "",
     stage_id: w.stage_id || "",
     priority: w.priority || "medium",
+    trade: w.trade || "",
     scheduled_start: w.scheduled_start ? toLocalDatetimeInput(w.scheduled_start) : "",
     scheduled_end: w.scheduled_end ? toLocalDatetimeInput(w.scheduled_end) : "",
     site_address: w.site_address || "",
@@ -406,6 +418,7 @@ function buildPayload(f) {
   if (f.description !== undefined) p.description = f.description;
   if (f.stage_id !== undefined)    p.stage_id    = f.stage_id || null;
   if (f.priority !== undefined)    p.priority    = f.priority;
+  if (f.trade !== undefined)       p.trade       = f.trade || null;
   if (f.scheduled_start !== undefined) p.scheduled_start = f.scheduled_start || null;
   if (f.scheduled_end !== undefined)   p.scheduled_end   = f.scheduled_end || null;
   if (f.site_address !== undefined) p.site_address = f.site_address;
@@ -448,6 +461,11 @@ function formatBytes(bytes) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
+
+const tradeWarnStyle = {
+  fontSize: 12, color: "#92400E", background: "#FFFBEB",
+  border: "1px solid #FDE68A", borderRadius: 4, padding: "6px 10px", marginTop: 4,
+};
 
 const styles = {
   page:         { display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" },

@@ -7,16 +7,17 @@ import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
+import { TRADES, TRADE_LABEL } from "@/constants/trades";
 
 const ALLOWED_CREATE = ["company_admin", "manager", "superadmin"];
 
 const EMPTY_FORM = {
   name: "", description: "", stage_id: "",
-  client_name: "", client_email: "", start_date: "",
+  client_name: "", client_email: "", start_date: "", trade: "",
 };
 
 export default function ProjectsPage() {
-  const { user } = useAuth();
+  const { user, company } = useAuth();
   const navigate = useNavigate();
 
   const [projects, setProjects]       = useState([]);
@@ -26,6 +27,7 @@ export default function ProjectsPage() {
   const [error, setError]             = useState("");
   const [search, setSearch]           = useState("");
   const [stageFilter, setStageFilter] = useState("");
+  const [tradeFilter, setTradeFilter] = useState("");
   const [page, setPage]               = useState(1);
   const [showCreate, setShowCreate]   = useState(false);
   const [createForm, setCreateForm]   = useState(EMPTY_FORM);
@@ -34,13 +36,14 @@ export default function ProjectsPage() {
 
   const searchTimer = useRef(null);
 
-  const fetchProjects = useCallback(async (q, stageId, pg) => {
+  const fetchProjects = useCallback(async (q, stageId, trade, pg) => {
     setLoading(true);
     setError("");
     try {
       const params = { page: pg, per_page: 25 };
       if (q)       params.search   = q;
       if (stageId) params.stage_id = stageId;
+      if (trade)   params.trade    = trade;
       const res = await projectsApi.list(params);
       setProjects(res.data.items);
       setPagination(res.data.pagination);
@@ -53,7 +56,7 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     workflowApi.listStages("project").then((r) => setStages(r.data.stages)).catch(() => {});
-    fetchProjects("", "", 1);
+    fetchProjects("", "", "", 1);
   }, [fetchProjects]);
 
   // Debounced search
@@ -62,19 +65,25 @@ export default function ProjectsPage() {
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
       setPage(1);
-      fetchProjects(val, stageFilter, 1);
+      fetchProjects(val, stageFilter, tradeFilter, 1);
     }, 300);
   };
 
   const handleStageFilter = (val) => {
     setStageFilter(val);
     setPage(1);
-    fetchProjects(search, val, 1);
+    fetchProjects(search, val, tradeFilter, 1);
+  };
+
+  const handleTradeFilter = (val) => {
+    setTradeFilter(val);
+    setPage(1);
+    fetchProjects(search, stageFilter, val, 1);
   };
 
   const handlePage = (newPage) => {
     setPage(newPage);
-    fetchProjects(search, stageFilter, newPage);
+    fetchProjects(search, stageFilter, tradeFilter, newPage);
   };
 
   const handleCreate = async (e) => {
@@ -88,6 +97,7 @@ export default function ProjectsPage() {
       if (createForm.client_name) payload.client_name  = createForm.client_name;
       if (createForm.client_email) payload.client_email = createForm.client_email;
       if (createForm.start_date)  payload.start_date   = createForm.start_date;
+      if (createForm.trade)       payload.trade        = createForm.trade;
       const res = await projectsApi.create(payload);
       navigate(`/projects/${res.data.project.id}`);
     } catch (err) {
@@ -130,6 +140,14 @@ export default function ProjectsPage() {
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
+        <select
+          style={styles.select}
+          value={tradeFilter}
+          onChange={(e) => handleTradeFilter(e.target.value)}
+        >
+          <option value="">All trades</option>
+          {TRADES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+        </select>
       </div>
 
       {/* Content */}
@@ -149,7 +167,7 @@ export default function ProjectsPage() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  {["Name", "Stage", "Client", "Manager", "Start Date", "WOs"].map((h) => (
+                  {["Name", "Trade", "Stage", "Client", "Manager", "Start Date", "WOs"].map((h) => (
                     <th key={h} style={styles.th}>{h}</th>
                   ))}
                 </tr>
@@ -162,6 +180,7 @@ export default function ProjectsPage() {
                     onClick={() => navigate(`/projects/${p.id}`)}
                   >
                     <td style={{ ...styles.td, fontWeight: 600, color: "#111827" }}>{p.name}</td>
+                    <td style={styles.td}>{p.trade ? TRADE_LABEL[p.trade] || p.trade : <span style={styles.muted}>—</span>}</td>
                     <td style={styles.td}>
                       {p.stage
                         ? <Badge label={p.stage.name} color={p.stage.color} />
@@ -237,6 +256,12 @@ export default function ProjectsPage() {
               </select>
             </FormField>
 
+            <TradeField
+              value={createForm.trade}
+              onChange={(v) => setCreateForm({ ...createForm, trade: v })}
+              companySpecs={company?.specializations || []}
+            />
+
             <div style={styles.row2}>
               <FormField label="Client Name">
                 <input
@@ -287,6 +312,32 @@ function FormField({ label, required, children }) {
     </div>
   );
 }
+
+function TradeField({ value, onChange, companySpecs }) {
+  const outOfSpec = value && companySpecs.length > 0 && !companySpecs.includes(value);
+  return (
+    <FormField label="Trade / Specialization">
+      <select
+        style={styles.input}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">— none —</option>
+        {TRADES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+      </select>
+      {outOfSpec && (
+        <div style={tradeWarnStyle}>
+          ⚠ This trade is not listed under your company's declared specializations.
+        </div>
+      )}
+    </FormField>
+  );
+}
+
+const tradeWarnStyle = {
+  fontSize: 12, color: "#92400E", background: "#FFFBEB",
+  border: "1px solid #FDE68A", borderRadius: 4, padding: "6px 10px", marginTop: 4,
+};
 
 function formatDate(dateStr) {
   if (!dateStr) return "";

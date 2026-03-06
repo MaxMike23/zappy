@@ -44,6 +44,7 @@ export function AuthProvider({ children }) {
       .get("/auth/me")
       .then((res) => {
         setUser(res.data.user);
+        setCompany(res.data.company || null);
       })
       .catch(() => {
         // Token invalid/expired — interceptor handles refresh or clears storage
@@ -57,6 +58,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem("access_token", res.data.access_token);
     localStorage.setItem("refresh_token", res.data.refresh_token);
     setUser(res.data.user);
+    setCompany(res.data.company || null);
     return res.data;
   };
 

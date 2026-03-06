@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { TRADES, TRADE_LABEL } from "@/constants/trades";
 import { workOrdersApi } from "@/api/workOrders";
 import { projectsApi } from "@/api/projects";
 import { workflowApi } from "@/api/workflow";
@@ -15,12 +16,12 @@ const ALLOWED_CREATE = ["company_admin", "manager", "superadmin"];
 
 const EMPTY_FORM = {
   title: "", project_id: "", description: "",
-  stage_id: "", priority: "medium",
+  stage_id: "", priority: "medium", trade: "",
   scheduled_start: "", scheduled_end: "",
 };
 
 export default function WorkOrdersPage() {
-  const { user } = useAuth();
+  const { user, company } = useAuth();
   const navigate = useNavigate();
 
   const [workOrders, setWorkOrders] = useState([]);
@@ -33,6 +34,7 @@ export default function WorkOrdersPage() {
   const [search, setSearch]             = useState("");
   const [stageFilter, setStageFilter]   = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
+  const [tradeFilter, setTradeFilter]   = useState("");
   const [page, setPage]                 = useState(1);
 
   const [showCreate, setShowCreate] = useState(false);
@@ -43,7 +45,7 @@ export default function WorkOrdersPage() {
   const searchTimer = useRef(null);
   const canCreate = ALLOWED_CREATE.includes(user?.role);
 
-  const fetchWOs = useCallback(async (q, stageId, priority, pg) => {
+  const fetchWOs = useCallback(async (q, stageId, priority, trade, pg) => {
     setLoading(true);
     setError("");
     try {
@@ -51,6 +53,7 @@ export default function WorkOrdersPage() {
       if (q)        params.search    = q;
       if (stageId)  params.stage_id  = stageId;
       if (priority) params.priority  = priority;
+      if (trade)    params.trade     = trade;
       const res = await workOrdersApi.list(params);
       setWorkOrders(res.data.items);
       setPagination(res.data.pagination);
@@ -69,7 +72,7 @@ export default function WorkOrdersPage() {
       setStages(stagesRes.data.stages);
       setProjects(projRes.data.items);
     }).catch(() => {});
-    fetchWOs("", "", "", 1);
+    fetchWOs("", "", "", "", 1);
   }, [fetchWOs]);
 
   const handleSearch = (val) => {
@@ -77,13 +80,13 @@ export default function WorkOrdersPage() {
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
       setPage(1);
-      fetchWOs(val, stageFilter, priorityFilter, 1);
+      fetchWOs(val, stageFilter, priorityFilter, tradeFilter, 1);
     }, 300);
   };
 
-  const applyFilter = (newStage, newPriority) => {
+  const applyFilter = (newStage, newPriority, newTrade) => {
     setPage(1);
-    fetchWOs(search, newStage, newPriority, 1);
+    fetchWOs(search, newStage, newPriority, newTrade, 1);
   };
 
   const handleCreate = async (e) => {
@@ -97,6 +100,7 @@ export default function WorkOrdersPage() {
       if (createForm.stage_id)      payload.stage_id      = createForm.stage_id;
       if (createForm.scheduled_start) payload.scheduled_start = createForm.scheduled_start;
       if (createForm.scheduled_end)   payload.scheduled_end   = createForm.scheduled_end;
+      if (createForm.trade)           payload.trade           = createForm.trade;
       const res = await workOrdersApi.create(payload);
       navigate(`/work-orders/${res.data.work_order.id}`);
     } catch (err) {
@@ -130,7 +134,7 @@ export default function WorkOrdersPage() {
         <select
           style={styles.select}
           value={stageFilter}
-          onChange={(e) => { setStageFilter(e.target.value); applyFilter(e.target.value, priorityFilter); }}
+          onChange={(e) => { setStageFilter(e.target.value); applyFilter(e.target.value, priorityFilter, tradeFilter); }}
         >
           <option value="">All stages</option>
           {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -138,10 +142,18 @@ export default function WorkOrdersPage() {
         <select
           style={styles.select}
           value={priorityFilter}
-          onChange={(e) => { setPriorityFilter(e.target.value); applyFilter(stageFilter, e.target.value); }}
+          onChange={(e) => { setPriorityFilter(e.target.value); applyFilter(stageFilter, e.target.value, tradeFilter); }}
         >
           <option value="">All priorities</option>
           {PRIORITIES.map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+        </select>
+        <select
+          style={styles.select}
+          value={tradeFilter}
+          onChange={(e) => { setTradeFilter(e.target.value); applyFilter(stageFilter, priorityFilter, e.target.value); }}
+        >
+          <option value="">All trades</option>
+          {TRADES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
         </select>
       </div>
 
@@ -161,7 +173,7 @@ export default function WorkOrdersPage() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  {["Title", "Project", "Stage", "Priority", "Assignees", "Scheduled"].map((h) => (
+                  {["Title", "Trade", "Project", "Stage", "Priority", "Assignees", "Scheduled"].map((h) => (
                     <th key={h} style={styles.th}>{h}</th>
                   ))}
                 </tr>
@@ -170,6 +182,7 @@ export default function WorkOrdersPage() {
                 {workOrders.map((wo) => (
                   <tr key={wo.id} style={styles.tr} onClick={() => navigate(`/work-orders/${wo.id}`)}>
                     <td style={{ ...styles.td, fontWeight: 600, color: "#111827" }}>{wo.title}</td>
+                    <td style={styles.td}>{wo.trade ? TRADE_LABEL[wo.trade] || wo.trade : <span style={styles.muted}>—</span>}</td>
                     <td style={styles.td}>{wo.project_id ? <span style={{ color: "#3B82F6" }}>{wo.project_name || "—"}</span> : <span style={styles.muted}>—</span>}</td>
                     <td style={styles.td}>{wo.stage ? <Badge label={wo.stage.name} color={wo.stage.color} /> : <span style={styles.muted}>—</span>}</td>
                     <td style={styles.td}><Badge label={wo.priority} color={PRIORITY_COLORS[wo.priority]} /></td>
@@ -183,9 +196,9 @@ export default function WorkOrdersPage() {
 
           {pagination && (pagination.has_prev || pagination.has_next) && (
             <div style={styles.pagination}>
-              <button style={{ ...styles.pageBtn, opacity: pagination.has_prev ? 1 : 0.4 }} disabled={!pagination.has_prev} onClick={() => { setPage(page - 1); fetchWOs(search, stageFilter, priorityFilter, page - 1); }}>← Prev</button>
+              <button style={{ ...styles.pageBtn, opacity: pagination.has_prev ? 1 : 0.4 }} disabled={!pagination.has_prev} onClick={() => { setPage(page - 1); fetchWOs(search, stageFilter, priorityFilter, tradeFilter, page - 1); }}>← Prev</button>
               <span style={styles.pageInfo}>Page {pagination.page} of {pagination.pages}</span>
-              <button style={{ ...styles.pageBtn, opacity: pagination.has_next ? 1 : 0.4 }} disabled={!pagination.has_next} onClick={() => { setPage(page + 1); fetchWOs(search, stageFilter, priorityFilter, page + 1); }}>Next →</button>
+              <button style={{ ...styles.pageBtn, opacity: pagination.has_next ? 1 : 0.4 }} disabled={!pagination.has_next} onClick={() => { setPage(page + 1); fetchWOs(search, stageFilter, priorityFilter, tradeFilter, page + 1); }}>Next →</button>
             </div>
           )}
         </>
@@ -226,6 +239,16 @@ export default function WorkOrdersPage() {
               </FormField>
             </div>
 
+            <FormField label="Trade / Specialization">
+              <select style={styles.input} value={createForm.trade} onChange={(e) => setCreateForm({ ...createForm, trade: e.target.value })}>
+                <option value="">— none —</option>
+                {TRADES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </select>
+              {createForm.trade && (company?.specializations || []).length > 0 && !(company?.specializations || []).includes(createForm.trade) && (
+                <div style={tradeWarnStyle}>⚠ This trade is not listed under your company's declared specializations.</div>
+              )}
+            </FormField>
+
             <div style={styles.row2}>
               <FormField label="Scheduled Start">
                 <input type="datetime-local" style={styles.input} value={createForm.scheduled_start} onChange={(e) => setCreateForm({ ...createForm, scheduled_start: e.target.value })} />
@@ -245,6 +268,11 @@ export default function WorkOrdersPage() {
     </div>
   );
 }
+
+const tradeWarnStyle = {
+  fontSize: 12, color: "#92400E", background: "#FFFBEB",
+  border: "1px solid #FDE68A", borderRadius: 4, padding: "6px 10px", marginTop: 4,
+};
 
 function FormField({ label, required, children }) {
   return (

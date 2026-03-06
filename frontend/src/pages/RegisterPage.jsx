@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { TRADES } from "@/constants/trades";
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -15,6 +16,7 @@ export default function RegisterPage() {
     password: "",
     confirm_password: "",
   });
+  const [specializations, setSpecializations] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -42,6 +44,7 @@ export default function RegisterPage() {
         email: form.email.trim(),
         phone: form.phone.trim(),
         password: form.password,
+        specializations,
       });
       navigate("/dashboard", { replace: true });
     } catch (err) {
@@ -63,7 +66,7 @@ export default function RegisterPage() {
     <div style={styles.page}>
       <div style={styles.card}>
         <h1 style={styles.title}>Create your workspace</h1>
-        <p style={styles.subtitle}>Get your AV company set up in minutes.</p>
+        <p style={styles.subtitle}>Get your low-voltage company set up in minutes.</p>
 
         {error && <div style={styles.error}>{error}</div>}
 
@@ -115,6 +118,27 @@ export default function RegisterPage() {
             value={form.phone}
             onChange={set("phone")}
           />
+
+          <label style={styles.label}>
+            Trade Specializations <span style={{ fontWeight: 400, color: "#9CA3AF" }}>(select all that apply)</span>
+          </label>
+          <div style={styles.checkGrid}>
+            {TRADES.map((t) => (
+              <label key={t.key} style={styles.checkLabel}>
+                <input
+                  type="checkbox"
+                  style={{ marginRight: 6 }}
+                  checked={specializations.includes(t.key)}
+                  onChange={(e) =>
+                    setSpecializations((prev) =>
+                      e.target.checked ? [...prev, t.key] : prev.filter((k) => k !== t.key)
+                    )
+                  }
+                />
+                {t.label}
+              </label>
+            ))}
+          </div>
 
           <label style={styles.label}>Password</label>
           <input
@@ -232,6 +256,24 @@ const styles = {
     fontSize: 14,
     fontWeight: 600,
     cursor: "pointer",
+  },
+  checkGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
+    gap: "8px 4px",
+    padding: "10px 12px",
+    border: "1px solid #D1D5DB",
+    borderRadius: 6,
+    background: "#F9FAFB",
+    marginBottom: 4,
+  },
+  checkLabel: {
+    display: "flex",
+    alignItems: "center",
+    fontSize: 13,
+    color: "#374151",
+    cursor: "pointer",
+    userSelect: "none",
   },
   loginLink: {
     textAlign: "center",

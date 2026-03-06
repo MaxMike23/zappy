@@ -19,6 +19,8 @@ class Company(db.Model):
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     # Stores: { "timezone": "America/New_York", "date_format": "MM/DD/YYYY", ... }
     settings = db.Column(JSONB, nullable=False, default=dict)
+    # Trade specializations declared at signup, e.g. ["av", "security", "smart_home"]
+    specializations = db.Column(JSONB, nullable=False, default=list)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -38,6 +40,7 @@ class Company(db.Model):
             "subscription_plan": self.subscription_plan,
             "is_active": self.is_active,
             "settings": self.settings,
+            "specializations": self.specializations or [],
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }

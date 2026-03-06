@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { TRADES, TRADE_LABEL } from "@/constants/trades";
 import { projectsApi } from "@/api/projects";
 import { workOrdersApi } from "@/api/workOrders";
 import { workflowApi } from "@/api/workflow";
@@ -16,7 +17,6 @@ const EDIT_ROLES = ["company_admin", "manager", "superadmin"];
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const [project, setProject]     = useState(null);
   const [workOrders, setWorkOrders] = useState([]);
@@ -34,6 +34,7 @@ export default function ProjectDetailPage() {
   const [woCreating, setWoCreating] = useState(false);
   const [woError, setWoError]     = useState("");
 
+  const { user, company } = useAuth();
   const canEdit = EDIT_ROLES.includes(user?.role);
 
   useEffect(() => {
@@ -152,6 +153,15 @@ export default function ProjectDetailPage() {
                 {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </InfoField>
+            <InfoField label="Trade / Specialization">
+              <select style={styles.input} value={editForm.trade || ""} onChange={(e) => setEditForm({ ...editForm, trade: e.target.value })}>
+                <option value="">— none —</option>
+                {TRADES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </select>
+              {editForm.trade && (company?.specializations || []).length > 0 && !(company?.specializations || []).includes(editForm.trade) && (
+                <div style={tradeWarnStyle}>⚠ This trade is not listed under your company's declared specializations.</div>
+              )}
+            </InfoField>
             <InfoField label="Client Name">
               <input style={styles.input} value={editForm.client_name} onChange={(e) => setEditForm({ ...editForm, client_name: e.target.value })} />
             </InfoField>
@@ -177,6 +187,7 @@ export default function ProjectDetailPage() {
         ) : (
           <>
             <InfoItem label="Stage" value={stage?.name} />
+            <InfoItem label="Trade" value={project.trade ? TRADE_LABEL[project.trade] || project.trade : null} />
             <InfoItem label="Client" value={project.client_name} />
             <InfoItem label="Client Email" value={project.client_email} />
             <InfoItem label="Client Phone" value={project.client_phone} />
@@ -303,6 +314,7 @@ function toEditForm(p) {
     name: p.name || "",
     description: p.description || "",
     stage_id: p.stage_id || "",
+    trade: p.trade || "",
     client_name: p.client_name || "",
     client_email: p.client_email || "",
     client_phone: p.client_phone || "",
@@ -324,6 +336,7 @@ function buildPayload(f) {
   if (f.client_name !== undefined)  p.client_name  = f.client_name;
   if (f.client_email !== undefined) p.client_email = f.client_email;
   if (f.client_phone !== undefined) p.client_phone = f.client_phone;
+  if (f.trade !== undefined)        p.trade        = f.trade || null;
   if (f.start_date !== undefined)   p.start_date   = f.start_date || null;
   if (f.end_date !== undefined)     p.end_date     = f.end_date || null;
   if (f.site_address !== undefined) p.site_address = f.site_address;
@@ -333,6 +346,11 @@ function buildPayload(f) {
   if (f.custom_fields !== undefined) p.custom_fields = f.custom_fields;
   return p;
 }
+
+const tradeWarnStyle = {
+  fontSize: 12, color: "#92400E", background: "#FFFBEB",
+  border: "1px solid #FDE68A", borderRadius: 4, padding: "6px 10px", marginTop: 4,
+};
 
 function formatDate(dateStr) {
   if (!dateStr) return "";

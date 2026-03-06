@@ -63,6 +63,9 @@ class WorkOrder(db.Model):
     site_lat = db.Column(db.Numeric(10, 7), nullable=True)
     site_lng = db.Column(db.Numeric(10, 7), nullable=True)
 
+    # Trade / specialization category (e.g. "av", "fire_alarm", "smart_home")
+    trade = db.Column(db.String(50), nullable=True)
+
     # Company-defined custom field values: { "site_contact": "John", "po_number": "PO-123" }
     custom_fields = db.Column(JSONB, nullable=False, default=dict)
 
@@ -122,6 +125,7 @@ class WorkOrder(db.Model):
             "site_zip": self.site_zip,
             "site_lat": float(self.site_lat) if self.site_lat else None,
             "site_lng": float(self.site_lng) if self.site_lng else None,
+            "trade": self.trade,
             "custom_fields": self.custom_fields,
             "is_archived": self.is_archived,
             "created_at": self.created_at.isoformat(),
