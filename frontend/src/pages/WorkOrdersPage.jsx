@@ -16,7 +16,7 @@ const ALLOWED_CREATE = ["company_admin", "manager", "superadmin"];
 
 const EMPTY_FORM = {
   title: "", project_id: "", description: "",
-  stage_id: "", priority: "medium", trade: "",
+  stage_id: "", priority: "medium", trades: [],
   scheduled_start: "", scheduled_end: "",
 };
 
@@ -100,7 +100,7 @@ export default function WorkOrdersPage() {
       if (createForm.stage_id)      payload.stage_id      = createForm.stage_id;
       if (createForm.scheduled_start) payload.scheduled_start = createForm.scheduled_start;
       if (createForm.scheduled_end)   payload.scheduled_end   = createForm.scheduled_end;
-      if (createForm.trade)           payload.trade           = createForm.trade;
+      if (createForm.trades.length)    payload.trades          = createForm.trades;
       const res = await workOrdersApi.create(payload);
       navigate(`/work-orders/${res.data.work_order.id}`);
     } catch (err) {
@@ -182,7 +182,7 @@ export default function WorkOrdersPage() {
                 {workOrders.map((wo) => (
                   <tr key={wo.id} style={styles.tr} onClick={() => navigate(`/work-orders/${wo.id}`)}>
                     <td style={{ ...styles.td, fontWeight: 600, color: "#111827" }}>{wo.title}</td>
-                    <td style={styles.td}>{wo.trade ? TRADE_LABEL[wo.trade] || wo.trade : <span style={styles.muted}>—</span>}</td>
+                    <td style={styles.td}>{wo.trades?.length ? wo.trades.map((t) => TRADE_LABEL[t] || t).join(", ") : <span style={styles.muted}>—</span>}</td>
                     <td style={styles.td}>{wo.project_id ? <span style={{ color: "#3B82F6" }}>{wo.project_name || "—"}</span> : <span style={styles.muted}>—</span>}</td>
                     <td style={styles.td}>{wo.stage ? <Badge label={wo.stage.name} color={wo.stage.color} /> : <span style={styles.muted}>—</span>}</td>
                     <td style={styles.td}><Badge label={wo.priority} color={PRIORITY_COLORS[wo.priority]} /></td>
@@ -239,15 +239,11 @@ export default function WorkOrdersPage() {
               </FormField>
             </div>
 
-            <FormField label="Trade / Specialization">
-              <select style={styles.input} value={createForm.trade} onChange={(e) => setCreateForm({ ...createForm, trade: e.target.value })}>
-                <option value="">— none —</option>
-                {TRADES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-              </select>
-              {createForm.trade && (company?.specializations || []).length > 0 && !(company?.specializations || []).includes(createForm.trade) && (
-                <div style={tradeWarnStyle}>⚠ This trade is not listed under your company's declared specializations.</div>
-              )}
-            </FormField>
+            <TradesField
+              values={createForm.trades}
+              onChange={(v) => setCreateForm({ ...createForm, trades: v })}
+              companySpecs={company?.specializations || []}
+            />
 
             <div style={styles.row2}>
               <FormField label="Scheduled Start">
@@ -274,6 +270,29 @@ const tradeWarnStyle = {
   border: "1px solid #FDE68A", borderRadius: 4, padding: "6px 10px", marginTop: 4,
 };
 
+function TradesField({ values, onChange, companySpecs }) {
+  const toggle = (key) =>
+    onChange(values.includes(key) ? values.filter((k) => k !== key) : [...values, key]);
+  const outOfSpec = companySpecs.length > 0 && values.some((k) => !companySpecs.includes(k));
+  return (
+    <FormField label="Trades / Specializations">
+      <div style={checkGridStyle}>
+        {TRADES.map((t) => (
+          <label key={t.key} style={checkLabelStyle}>
+            <input type="checkbox" checked={values.includes(t.key)} onChange={() => toggle(t.key)} />
+            {t.label}
+          </label>
+        ))}
+      </div>
+      {outOfSpec && (
+        <div style={tradeWarnStyle}>
+          ⚠ One or more selected trades are not listed under your company's declared specializations.
+        </div>
+      )}
+    </FormField>
+  );
+}
+
 function FormField({ label, required, children }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12, flex: 1 }}>
@@ -291,6 +310,14 @@ function formatDateTime(iso) {
     month: "short", day: "numeric", year: "numeric",
   });
 }
+
+const checkGridStyle = {
+  display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "6px 12px", padding: "8px 0",
+};
+
+const checkLabelStyle = {
+  display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#374151", cursor: "pointer",
+};
 
 const styles = {
   header:       { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 },

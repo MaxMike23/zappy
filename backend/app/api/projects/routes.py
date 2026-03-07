@@ -34,7 +34,7 @@ def list_projects():
     archived = request.args.get("is_archived", "false").lower() == "true"
     query = query.filter_by(is_archived=archived)
     if trade := request.args.get("trade"):
-        query = query.filter_by(trade=trade)
+        query = query.filter(Project.trades.contains([trade]))
     if search := request.args.get("search"):
         pattern = f"%{search}%"
         query = query.filter(
@@ -79,7 +79,7 @@ def create_project():
         site_lng=data.get("site_lng"),
         start_date=data.get("start_date"),
         end_date=data.get("end_date"),
-        trade=data.get("trade"),
+        trades=data.get("trades", []),
         custom_fields=data.get("custom_fields", {}),
     )
     db.session.add(project)
@@ -120,7 +120,7 @@ def update_project(project_id):
     updatable = [
         "name", "description", "client_name", "client_email", "client_phone",
         "stage_id", "manager_id", "site_address", "site_city", "site_state",
-        "site_zip", "site_lat", "site_lng", "start_date", "end_date", "trade", "is_archived",
+        "site_zip", "site_lat", "site_lng", "start_date", "end_date", "trades", "is_archived",
     ]
     for field in updatable:
         if field in data:

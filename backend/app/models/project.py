@@ -41,8 +41,8 @@ class Project(db.Model):
     start_date = db.Column(db.Date, nullable=True)
     end_date = db.Column(db.Date, nullable=True)
 
-    # Trade / specialization category (e.g. "av", "fire_alarm", "smart_home")
-    trade = db.Column(db.String(50), nullable=True)
+    # Trade / specialization categories — one project can span multiple trades
+    trades = db.Column(JSONB, nullable=False, default=list)
 
     # Company-defined custom field values: { "field_key": value, ... }
     custom_fields = db.Column(JSONB, nullable=False, default=dict)
@@ -86,7 +86,7 @@ class Project(db.Model):
             "site_lng": float(self.site_lng) if self.site_lng else None,
             "start_date": self.start_date.isoformat() if self.start_date else None,
             "end_date": self.end_date.isoformat() if self.end_date else None,
-            "trade": self.trade,
+            "trades": self.trades or [],
             "custom_fields": self.custom_fields,
             "is_archived": self.is_archived,
             "created_at": self.created_at.isoformat(),

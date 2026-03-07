@@ -215,13 +215,24 @@ export default function WorkOrderDetailPage() {
                 {PRIORITIES.map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
               </select>
             </EditField>
-            <EditField label="Trade / Specialization">
-              <select style={styles.input} value={editForm.trade || ""} onChange={(e) => setEditForm({ ...editForm, trade: e.target.value })}>
-                <option value="">— none —</option>
-                {TRADES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-              </select>
-              {editForm.trade && (company?.specializations || []).length > 0 && !(company?.specializations || []).includes(editForm.trade) && (
-                <div style={tradeWarnStyle}>⚠ This trade is not listed under your company's declared specializations.</div>
+            <EditField label="Trades / Specializations" wide>
+              <div style={checkGridStyle}>
+                {TRADES.map((t) => (
+                  <label key={t.key} style={checkLabelStyle}>
+                    <input
+                      type="checkbox"
+                      checked={(editForm.trades || []).includes(t.key)}
+                      onChange={() => {
+                        const cur = editForm.trades || [];
+                        setEditForm({ ...editForm, trades: cur.includes(t.key) ? cur.filter((k) => k !== t.key) : [...cur, t.key] });
+                      }}
+                    />
+                    {t.label}
+                  </label>
+                ))}
+              </div>
+              {(company?.specializations || []).length > 0 && (editForm.trades || []).some((k) => !(company?.specializations || []).includes(k)) && (
+                <div style={tradeWarnStyle}>⚠ One or more selected trades are not listed under your company's declared specializations.</div>
               )}
             </EditField>
             <EditField label="Scheduled Start">
@@ -244,7 +255,7 @@ export default function WorkOrderDetailPage() {
           <div style={styles.infoRow}>
             {wo.description && <p style={{ margin: "0 0 4px", fontSize: 14, color: "#374151" }}>{wo.description}</p>}
             <div style={styles.metaGrid}>
-              {wo.trade && <MetaItem label="Trade" value={TRADE_LABEL[wo.trade] || wo.trade} />}
+              {wo.trades?.length > 0 && <MetaItem label="Trades" value={wo.trades.map((t) => TRADE_LABEL[t] || t).join(", ")} />}
               {wo.scheduled_start && <MetaItem label="Scheduled" value={formatDateTime(wo.scheduled_start)} />}
               {wo.site_address && <MetaItem label="Site" value={[wo.site_address, wo.site_city, wo.site_state].filter(Boolean).join(", ")} />}
             </div>
@@ -401,7 +412,7 @@ function toEditForm(w) {
     description: w.description || "",
     stage_id: w.stage_id || "",
     priority: w.priority || "medium",
-    trade: w.trade || "",
+    trades: w.trades || [],
     scheduled_start: w.scheduled_start ? toLocalDatetimeInput(w.scheduled_start) : "",
     scheduled_end: w.scheduled_end ? toLocalDatetimeInput(w.scheduled_end) : "",
     site_address: w.site_address || "",
@@ -418,7 +429,7 @@ function buildPayload(f) {
   if (f.description !== undefined) p.description = f.description;
   if (f.stage_id !== undefined)    p.stage_id    = f.stage_id || null;
   if (f.priority !== undefined)    p.priority    = f.priority;
-  if (f.trade !== undefined)       p.trade       = f.trade || null;
+  if (f.trades !== undefined)      p.trades      = f.trades;
   if (f.scheduled_start !== undefined) p.scheduled_start = f.scheduled_start || null;
   if (f.scheduled_end !== undefined)   p.scheduled_end   = f.scheduled_end || null;
   if (f.site_address !== undefined) p.site_address = f.site_address;
@@ -465,6 +476,14 @@ function formatBytes(bytes) {
 const tradeWarnStyle = {
   fontSize: 12, color: "#92400E", background: "#FFFBEB",
   border: "1px solid #FDE68A", borderRadius: 4, padding: "6px 10px", marginTop: 4,
+};
+
+const checkGridStyle = {
+  display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "6px 12px", padding: "8px 0",
+};
+
+const checkLabelStyle = {
+  display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#374151", cursor: "pointer",
 };
 
 const styles = {

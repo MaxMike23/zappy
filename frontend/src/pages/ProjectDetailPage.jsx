@@ -153,13 +153,24 @@ export default function ProjectDetailPage() {
                 {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </InfoField>
-            <InfoField label="Trade / Specialization">
-              <select style={styles.input} value={editForm.trade || ""} onChange={(e) => setEditForm({ ...editForm, trade: e.target.value })}>
-                <option value="">— none —</option>
-                {TRADES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-              </select>
-              {editForm.trade && (company?.specializations || []).length > 0 && !(company?.specializations || []).includes(editForm.trade) && (
-                <div style={tradeWarnStyle}>⚠ This trade is not listed under your company's declared specializations.</div>
+            <InfoField label="Trades / Specializations" wide>
+              <div style={checkGridStyle}>
+                {TRADES.map((t) => (
+                  <label key={t.key} style={checkLabelStyle}>
+                    <input
+                      type="checkbox"
+                      checked={(editForm.trades || []).includes(t.key)}
+                      onChange={() => {
+                        const cur = editForm.trades || [];
+                        setEditForm({ ...editForm, trades: cur.includes(t.key) ? cur.filter((k) => k !== t.key) : [...cur, t.key] });
+                      }}
+                    />
+                    {t.label}
+                  </label>
+                ))}
+              </div>
+              {(company?.specializations || []).length > 0 && (editForm.trades || []).some((k) => !(company?.specializations || []).includes(k)) && (
+                <div style={tradeWarnStyle}>⚠ One or more selected trades are not listed under your company's declared specializations.</div>
               )}
             </InfoField>
             <InfoField label="Client Name">
@@ -187,7 +198,7 @@ export default function ProjectDetailPage() {
         ) : (
           <>
             <InfoItem label="Stage" value={stage?.name} />
-            <InfoItem label="Trade" value={project.trade ? TRADE_LABEL[project.trade] || project.trade : null} />
+            <InfoItem label="Trades" value={project.trades?.length ? project.trades.map((t) => TRADE_LABEL[t] || t).join(", ") : null} />
             <InfoItem label="Client" value={project.client_name} />
             <InfoItem label="Client Email" value={project.client_email} />
             <InfoItem label="Client Phone" value={project.client_phone} />
@@ -314,7 +325,7 @@ function toEditForm(p) {
     name: p.name || "",
     description: p.description || "",
     stage_id: p.stage_id || "",
-    trade: p.trade || "",
+    trades: p.trades || [],
     client_name: p.client_name || "",
     client_email: p.client_email || "",
     client_phone: p.client_phone || "",
@@ -336,7 +347,7 @@ function buildPayload(f) {
   if (f.client_name !== undefined)  p.client_name  = f.client_name;
   if (f.client_email !== undefined) p.client_email = f.client_email;
   if (f.client_phone !== undefined) p.client_phone = f.client_phone;
-  if (f.trade !== undefined)        p.trade        = f.trade || null;
+  if (f.trades !== undefined)       p.trades       = f.trades;
   if (f.start_date !== undefined)   p.start_date   = f.start_date || null;
   if (f.end_date !== undefined)     p.end_date     = f.end_date || null;
   if (f.site_address !== undefined) p.site_address = f.site_address;
@@ -350,6 +361,14 @@ function buildPayload(f) {
 const tradeWarnStyle = {
   fontSize: 12, color: "#92400E", background: "#FFFBEB",
   border: "1px solid #FDE68A", borderRadius: 4, padding: "6px 10px", marginTop: 4,
+};
+
+const checkGridStyle = {
+  display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "6px 12px", padding: "8px 0",
+};
+
+const checkLabelStyle = {
+  display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#374151", cursor: "pointer",
 };
 
 function formatDate(dateStr) {

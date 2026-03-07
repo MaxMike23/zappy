@@ -13,7 +13,7 @@ const ALLOWED_CREATE = ["company_admin", "manager", "superadmin"];
 
 const EMPTY_FORM = {
   name: "", description: "", stage_id: "",
-  client_name: "", client_email: "", start_date: "", trade: "",
+  client_name: "", client_email: "", start_date: "", trades: [],
 };
 
 export default function ProjectsPage() {
@@ -180,7 +180,7 @@ export default function ProjectsPage() {
                     onClick={() => navigate(`/projects/${p.id}`)}
                   >
                     <td style={{ ...styles.td, fontWeight: 600, color: "#111827" }}>{p.name}</td>
-                    <td style={styles.td}>{p.trade ? TRADE_LABEL[p.trade] || p.trade : <span style={styles.muted}>—</span>}</td>
+                    <td style={styles.td}>{p.trades?.length ? p.trades.map((t) => TRADE_LABEL[t] || t).join(", ") : <span style={styles.muted}>—</span>}</td>
                     <td style={styles.td}>
                       {p.stage
                         ? <Badge label={p.stage.name} color={p.stage.color} />
@@ -256,9 +256,9 @@ export default function ProjectsPage() {
               </select>
             </FormField>
 
-            <TradeField
-              value={createForm.trade}
-              onChange={(v) => setCreateForm({ ...createForm, trade: v })}
+            <TradesField
+              values={createForm.trades}
+              onChange={(v) => setCreateForm({ ...createForm, trades: v })}
               companySpecs={company?.specializations || []}
             />
 
@@ -313,21 +313,23 @@ function FormField({ label, required, children }) {
   );
 }
 
-function TradeField({ value, onChange, companySpecs }) {
-  const outOfSpec = value && companySpecs.length > 0 && !companySpecs.includes(value);
+function TradesField({ values, onChange, companySpecs }) {
+  const toggle = (key) =>
+    onChange(values.includes(key) ? values.filter((k) => k !== key) : [...values, key]);
+  const outOfSpec = companySpecs.length > 0 && values.some((k) => !companySpecs.includes(k));
   return (
-    <FormField label="Trade / Specialization">
-      <select
-        style={styles.input}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="">— none —</option>
-        {TRADES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-      </select>
+    <FormField label="Trades / Specializations">
+      <div style={checkGridStyle}>
+        {TRADES.map((t) => (
+          <label key={t.key} style={checkLabelStyle}>
+            <input type="checkbox" checked={values.includes(t.key)} onChange={() => toggle(t.key)} />
+            {t.label}
+          </label>
+        ))}
+      </div>
       {outOfSpec && (
         <div style={tradeWarnStyle}>
-          ⚠ This trade is not listed under your company's declared specializations.
+          ⚠ One or more selected trades are not listed under your company's declared specializations.
         </div>
       )}
     </FormField>
@@ -337,6 +339,15 @@ function TradeField({ value, onChange, companySpecs }) {
 const tradeWarnStyle = {
   fontSize: 12, color: "#92400E", background: "#FFFBEB",
   border: "1px solid #FDE68A", borderRadius: 4, padding: "6px 10px", marginTop: 4,
+};
+
+const checkGridStyle = {
+  display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "6px 12px",
+  padding: "8px 0",
+};
+
+const checkLabelStyle = {
+  display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#374151", cursor: "pointer",
 };
 
 function formatDate(dateStr) {
