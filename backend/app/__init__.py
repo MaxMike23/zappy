@@ -66,6 +66,7 @@ def create_app(config_name: str = None) -> Flask:
     from app.api.workflow import workflow_bp
     from app.api.time_logs import time_logs_bp
     from app.api.files import files_bp
+    from app.api.visits import visits_bp
 
     app.register_blueprint(auth_bp,        url_prefix="/api/auth")
     app.register_blueprint(users_bp,       url_prefix="/api/users")
@@ -75,6 +76,7 @@ def create_app(config_name: str = None) -> Flask:
     app.register_blueprint(workflow_bp,    url_prefix="/api/workflow")
     app.register_blueprint(time_logs_bp,   url_prefix="/api/time-logs")
     app.register_blueprint(files_bp,       url_prefix="/api/files")
+    app.register_blueprint(visits_bp,      url_prefix="/api/visits")
 
     # Health check
     @app.get("/health")

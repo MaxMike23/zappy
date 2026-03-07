@@ -33,12 +33,21 @@
 - Responsive layout: desktop sidebar + content panel; mobile hamburger overlay + stacked single-column view
 - **Trade tagging:** projects and work orders each carry a `trade` field (from the shared 15-trade list); filter bar on both list pages; out-of-spec amber warning shown in edit/create forms when the selected trade is not in the company's declared specializations
 
-### 2B — Team Management UI
+### 2B — Visits (Scheduled On-Site Trips) ✅ COMPLETE
+- Visit model: on-site trips under a work order OR directly under a project
+- Clock-in / clock-out records actual arrival and departure times
+- Per-visit assignees (can differ from work order assignees day-to-day)
+- Status lifecycle: scheduled → in_progress → completed (or cancelled)
+- Global visits list page with status and date-range filters
+- Visits section inline on Work Order detail (quick create + clock-in/out per row)
+- Direct Visits section inline on Project detail (site surveys, walkthroughs)
+
+### 2C — Team Management UI
 - Users list (company-scoped)
 - Invite/create user form (company_admin only)
 - Edit user profile, role, and active status
 
-### 2C — Time Tracking UI
+### 2D — Time Tracking UI
 - Log time against a work order
 - Technician view: own logs only
 - Manager view: all logs, approve/reject, export summary

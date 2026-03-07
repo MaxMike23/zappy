@@ -9,6 +9,7 @@ from app.models.work_order import WorkOrder, WorkOrderNote, work_order_assignmen
 from app.models.time_log import TimeLog
 from app.models.file import UploadedFile
 from app.models.audit import AuditLog
+from app.models.visit import Visit, visit_assignments, VisitStatus
 
 __all__ = [
     "Company",
@@ -24,4 +25,7 @@ __all__ = [
     "TimeLog",
     "UploadedFile",
     "AuditLog",
+    "Visit",
+    "visit_assignments",
+    "VisitStatus",
 ]

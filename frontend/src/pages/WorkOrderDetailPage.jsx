@@ -5,14 +5,17 @@ import { TRADES, TRADE_LABEL } from "@/constants/trades";
 import { workOrdersApi } from "@/api/workOrders";
 import { workflowApi } from "@/api/workflow";
 import { filesApi } from "@/api/files";
+import { visitsApi } from "@/api/visits";
 import client from "@/api/client";
 import Badge from "@/components/ui/Badge";
+import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
 import CustomFieldRenderer from "@/components/CustomFieldRenderer";
 
 const PRIORITY_COLORS = { low: "#10B981", medium: "#3B82F6", high: "#F59E0B", urgent: "#EF4444" };
 const PRIORITIES      = ["low", "medium", "high", "urgent"];
 const EDIT_ROLES      = ["company_admin", "manager", "superadmin"];
+const STATUS_COLORS   = { scheduled: "#3B82F6", in_progress: "#F59E0B", completed: "#10B981", cancelled: "#9CA3AF" };
 
 export default function WorkOrderDetailPage() {
   const { id } = useParams();
@@ -43,6 +46,12 @@ export default function WorkOrderDetailPage() {
   const [assigneeIds, setAssigneeIds]           = useState([]);
   const [savingAssignees, setSavingAssignees]   = useState(false);
 
+  const [visits, setVisits]               = useState([]);
+  const [showVisitModal, setShowVisitModal] = useState(false);
+  const [visitForm, setVisitForm]         = useState({ title: "", scheduled_start: "", scheduled_end: "", notes: "" });
+  const [visitCreating, setVisitCreating] = useState(false);
+  const [visitError, setVisitError]       = useState("");
+
   const { user, company } = useAuth();
   const canEdit = EDIT_ROLES.includes(user?.role);
   const isTech = user?.role === "technician";
@@ -56,7 +65,8 @@ export default function WorkOrderDetailPage() {
       workOrdersApi.listNotes(id),
       filesApi.list({ work_order_id: id }),
       client.get("/users/"),
-    ]).then(([woRes, stagesRes, fieldsRes, notesRes, filesRes, usersRes]) => {
+      visitsApi.list({ work_order_id: id, per_page: 50 }),
+    ]).then(([woRes, stagesRes, fieldsRes, notesRes, filesRes, usersRes, visitsRes]) => {
       const w = woRes.data.work_order;
       setWo(w);
       setEditForm(toEditForm(w));
@@ -66,6 +76,7 @@ export default function WorkOrderDetailPage() {
       setNotes(notesRes.data.notes);
       setFiles(filesRes.data.files);
       setUsers((usersRes.data.items || []).filter((u) => ["technician", "manager", "company_admin"].includes(u.role)));
+      setVisits(visitsRes.data.items);
     }).catch(() => setError("Failed to load work order."))
       .finally(() => setLoading(false));
   }, [id]);
@@ -148,6 +159,35 @@ export default function WorkOrderDetailPage() {
     } catch {/* no-op */} finally {
       setSavingAssignees(false);
     }
+  };
+
+  const handleCreateVisit = async (e) => {
+    e.preventDefault();
+    setVisitError("");
+    setVisitCreating(true);
+    try {
+      const res = await visitsApi.create({ work_order_id: id, ...visitForm });
+      setVisits((prev) => [...prev, res.data.visit]);
+      setShowVisitModal(false);
+    } catch (err) {
+      setVisitError(err.response?.data?.error || "Failed to create visit.");
+    } finally {
+      setVisitCreating(false);
+    }
+  };
+
+  const handleClockIn = async (visitId) => {
+    try {
+      const res = await visitsApi.clockIn(visitId);
+      setVisits((prev) => prev.map((v) => v.id === visitId ? res.data.visit : v));
+    } catch {/* no-op */}
+  };
+
+  const handleClockOut = async (visitId) => {
+    try {
+      const res = await visitsApi.clockOut(visitId);
+      setVisits((prev) => prev.map((v) => v.id === visitId ? res.data.visit : v));
+    } catch {/* no-op */}
   };
 
   if (loading) return <div style={{ display: "flex", justifyContent: "center", padding: 48 }}><Spinner size={28} /></div>;
@@ -312,6 +352,56 @@ export default function WorkOrderDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Visits */}
+        <div style={styles.section}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <h2 style={styles.sectionTitle}>Visits</h2>
+            {canEdit && (
+              <button style={styles.secondaryBtn} onClick={() => { setShowVisitModal(true); setVisitForm({ title: "", scheduled_start: "", scheduled_end: "", notes: "" }); setVisitError(""); }}>
+                + New Visit
+              </button>
+            )}
+          </div>
+          {visits.length === 0 ? (
+            <p style={{ fontSize: 14, color: "#9CA3AF" }}>No visits scheduled.</p>
+          ) : (
+            <div style={styles.tableWrap}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    {["Title", "Scheduled Start", "Status", "Assignees", "Duration", ""].map((h) => (
+                      <th key={h} style={styles.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visits.map((v) => {
+                    const isAssigned = v.assignees?.some((a) => a.id === user?.id);
+                    const canClock = isAssigned || canEdit;
+                    return (
+                      <tr key={v.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
+                        <td style={{ ...styles.visitTd, fontWeight: 600 }}>{v.title}</td>
+                        <td style={styles.visitTd}>{formatDateTime(v.scheduled_start)}</td>
+                        <td style={styles.visitTd}><Badge label={v.status.replace("_", " ")} color={STATUS_COLORS[v.status]} /></td>
+                        <td style={styles.visitTd}>{v.assignees?.length ? v.assignees.map((a) => a.full_name).join(", ") : <span style={{ color: "#9CA3AF" }}>Unassigned</span>}</td>
+                        <td style={styles.visitTd}>{v.duration_minutes != null ? `${v.duration_minutes} min` : <span style={{ color: "#9CA3AF" }}>—</span>}</td>
+                        <td style={{ ...styles.visitTd, whiteSpace: "nowrap" }}>
+                          {canClock && v.status === "scheduled" && (
+                            <button style={styles.clockBtn} onClick={() => handleClockIn(v.id)}>Clock In</button>
+                          )}
+                          {canClock && v.is_running && (
+                            <button style={{ ...styles.clockBtn, background: "#F59E0B" }} onClick={() => handleClockOut(v.id)}>Clock Out</button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Right sidebar */}
@@ -384,6 +474,42 @@ export default function WorkOrderDetailPage() {
           )}
         </div>
       </div>
+
+      {/* New Visit Modal */}
+      {showVisitModal && (
+        <Modal title="New Visit" onClose={() => setShowVisitModal(false)}>
+          <form onSubmit={handleCreateVisit} style={{ display: "flex", flexDirection: "column" }}>
+            {visitError && <div style={styles.errorMsg}>{visitError}</div>}
+            <VisitFormField label="Title" required>
+              <input style={styles.input} required value={visitForm.title} onChange={(e) => setVisitForm({ ...visitForm, title: e.target.value })} placeholder="e.g. Rack Build Day 1" />
+            </VisitFormField>
+            <VisitFormField label="Scheduled Start" required>
+              <input type="datetime-local" style={styles.input} required value={visitForm.scheduled_start} onChange={(e) => setVisitForm({ ...visitForm, scheduled_start: e.target.value })} />
+            </VisitFormField>
+            <VisitFormField label="Scheduled End" required>
+              <input type="datetime-local" style={styles.input} required value={visitForm.scheduled_end} onChange={(e) => setVisitForm({ ...visitForm, scheduled_end: e.target.value })} />
+            </VisitFormField>
+            <VisitFormField label="Notes">
+              <textarea style={{ ...styles.input, resize: "vertical" }} rows={3} value={visitForm.notes} onChange={(e) => setVisitForm({ ...visitForm, notes: e.target.value })} />
+            </VisitFormField>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+              <button type="button" style={styles.cancelBtn} onClick={() => setShowVisitModal(false)}>Cancel</button>
+              <button type="submit" style={styles.primaryBtn} disabled={visitCreating}>{visitCreating ? "Creating…" : "Create Visit"}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function VisitFormField({ label, required, children }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12 }}>
+      <label style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>
+        {label}{required && <span style={{ color: "#EF4444" }}> *</span>}
+      </label>
+      {children}
     </div>
   );
 }
@@ -517,4 +643,9 @@ const styles = {
   linkBtn:      { background: "none", border: "none", cursor: "pointer", color: "#3B82F6", fontSize: 13, fontWeight: 600, padding: 0 },
   errorMsg:     { color: "#B91C1C", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, padding: "10px 14px", fontSize: 13, marginBottom: 12 },
   input:        { padding: "8px 10px", border: "1px solid #D1D5DB", borderRadius: 6, fontSize: 14, outline: "none", fontFamily: "inherit", width: "100%" },
+  tableWrap:    { overflowX: "auto" },
+  table:        { width: "100%", borderCollapse: "collapse", fontSize: 13 },
+  th:           { textAlign: "left", padding: "10px 14px", background: "#F9FAFB", borderBottom: "1px solid #E5E7EB", fontSize: 12, fontWeight: 600, color: "#6B7280", whiteSpace: "nowrap" },
+  visitTd:      { padding: "10px 14px", color: "#374151", verticalAlign: "middle" },
+  clockBtn:     { padding: "4px 12px", background: "#111827", color: "#fff", border: "none", borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: "pointer" },
 };
