@@ -16,6 +16,16 @@ const PRIORITY_COLORS = { low: "#10B981", medium: "#3B82F6", high: "#F59E0B", ur
 const STATUS_COLORS   = { scheduled: "#3B82F6", in_progress: "#F59E0B", completed: "#10B981", cancelled: "#9CA3AF" };
 const EDIT_ROLES = ["company_admin", "manager", "superadmin"];
 
+const VISIT_TIME_STEP = 15; // minutes
+
+function snapMinutes(datetimeStr) {
+  if (!datetimeStr) return datetimeStr;
+  const d = new Date(datetimeStr);
+  d.setMinutes(Math.round(d.getMinutes() / VISIT_TIME_STEP) * VISIT_TIME_STEP, 0, 0);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -384,10 +394,10 @@ export default function ProjectDetailPage() {
               <input style={styles.input} required value={visitForm.title} onChange={(e) => setVisitForm({ ...visitForm, title: e.target.value })} placeholder="e.g. Site Survey" />
             </FormField>
             <FormField label="Scheduled Start" required>
-              <input type="datetime-local" step={15 * 60} style={styles.input} required value={visitForm.scheduled_start} onChange={(e) => setVisitForm({ ...visitForm, scheduled_start: e.target.value })} />
+              <input type="datetime-local" step={VISIT_TIME_STEP * 60} style={styles.input} required value={visitForm.scheduled_start} onChange={(e) => setVisitForm({ ...visitForm, scheduled_start: snapMinutes(e.target.value) })} />
             </FormField>
             <FormField label="Scheduled End" required>
-              <input type="datetime-local" step={15 * 60} style={styles.input} required value={visitForm.scheduled_end} onChange={(e) => setVisitForm({ ...visitForm, scheduled_end: e.target.value })} />
+              <input type="datetime-local" step={VISIT_TIME_STEP * 60} style={styles.input} required value={visitForm.scheduled_end} onChange={(e) => setVisitForm({ ...visitForm, scheduled_end: snapMinutes(e.target.value) })} />
             </FormField>
             <FormField label="Notes">
               <textarea style={{ ...styles.input, resize: "vertical" }} rows={3} value={visitForm.notes} onChange={(e) => setVisitForm({ ...visitForm, notes: e.target.value })} />

@@ -18,6 +18,16 @@ const STATUS_COLORS = {
 const STATUSES = ["scheduled", "in_progress", "completed", "cancelled"];
 const ALLOWED_CREATE = ["company_admin", "manager", "superadmin"];
 
+const VISIT_TIME_STEP = 15; // minutes; will be a settings value in a future phase
+
+function snapMinutes(datetimeStr) {
+  if (!datetimeStr) return datetimeStr;
+  const d = new Date(datetimeStr);
+  d.setMinutes(Math.round(d.getMinutes() / VISIT_TIME_STEP) * VISIT_TIME_STEP, 0, 0);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const EMPTY_FORM = {
   title: "",
   parent_type: "work_order",
@@ -231,10 +241,10 @@ export default function VisitsPage() {
 
             <div style={styles.row2}>
               <FormField label="Scheduled Start" required>
-                <input type="datetime-local" step={15 * 60} style={styles.input} required value={createForm.scheduled_start} onChange={(e) => setCreateForm({ ...createForm, scheduled_start: e.target.value })} />
+                <input type="datetime-local" step={VISIT_TIME_STEP * 60} style={styles.input} required value={createForm.scheduled_start} onChange={(e) => setCreateForm({ ...createForm, scheduled_start: snapMinutes(e.target.value) })} />
               </FormField>
               <FormField label="Scheduled End" required>
-                <input type="datetime-local" step={15 * 60} style={styles.input} required value={createForm.scheduled_end} onChange={(e) => setCreateForm({ ...createForm, scheduled_end: e.target.value })} />
+                <input type="datetime-local" step={VISIT_TIME_STEP * 60} style={styles.input} required value={createForm.scheduled_end} onChange={(e) => setCreateForm({ ...createForm, scheduled_end: snapMinutes(e.target.value) })} />
               </FormField>
             </div>
 
