@@ -42,10 +42,13 @@
 - Visits section inline on Work Order detail (quick create + clock-in/out per row)
 - Direct Visits section inline on Project detail (site surveys, walkthroughs)
 
-### 2C — Team Management UI
-- Users list (company-scoped)
-- Invite/create user form (company_admin only)
-- Edit user profile, role, and active status
+### 2C — Team Management UI ✅ COMPLETE
+- Users list (company-scoped) with role and active-status filters
+- Initials avatar + role-colored badge per row
+- Add User form (company_admin only): name, email, temporary password, role, phone
+- Edit modal: name, phone (all); email, role, active status toggle (admin only)
+- Deactivate / Reactivate actions with confirmation (admin only, self-protected)
+- Managers see the team list read-only; admins get full write access
 
 ### 2D — Time Tracking UI
 - Log time against a work order
