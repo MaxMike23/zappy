@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime as _dt
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required
 
@@ -164,12 +165,17 @@ def update_work_order(wo_id):
     if current_role in [UserRole.COMPANY_ADMIN, UserRole.MANAGER, UserRole.SUPERADMIN]:
         admin_fields = [
             "title", "description", "priority", "project_id",
-            "scheduled_start", "scheduled_end", "site_address", "site_city",
-            "site_state", "site_zip", "site_lat", "site_lng", "trades", "is_archived",
+            "site_address", "site_city", "site_state", "site_zip",
+            "site_lat", "site_lng", "trades", "is_archived",
         ]
         for field in admin_fields:
             if field in data:
                 setattr(wo, field, data[field])
+
+        if "scheduled_start" in data:
+            wo.scheduled_start = _dt.fromisoformat(data["scheduled_start"]) if data["scheduled_start"] else None
+        if "scheduled_end" in data:
+            wo.scheduled_end = _dt.fromisoformat(data["scheduled_end"]) if data["scheduled_end"] else None
 
         if "assignee_ids" in data:
             assignees = User.query.filter(

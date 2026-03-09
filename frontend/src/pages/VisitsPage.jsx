@@ -231,10 +231,10 @@ export default function VisitsPage() {
 
             <div style={styles.row2}>
               <FormField label="Scheduled Start" required>
-                <input type="datetime-local" style={styles.input} required value={createForm.scheduled_start} onChange={(e) => setCreateForm({ ...createForm, scheduled_start: e.target.value })} />
+                <input type="datetime-local" step={15 * 60} style={styles.input} required value={createForm.scheduled_start} onChange={(e) => setCreateForm({ ...createForm, scheduled_start: e.target.value })} />
               </FormField>
               <FormField label="Scheduled End" required>
-                <input type="datetime-local" style={styles.input} required value={createForm.scheduled_end} onChange={(e) => setCreateForm({ ...createForm, scheduled_end: e.target.value })} />
+                <input type="datetime-local" step={15 * 60} style={styles.input} required value={createForm.scheduled_end} onChange={(e) => setCreateForm({ ...createForm, scheduled_end: e.target.value })} />
               </FormField>
             </div>
 

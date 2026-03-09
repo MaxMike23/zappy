@@ -484,10 +484,10 @@ export default function WorkOrderDetailPage() {
               <input style={styles.input} required value={visitForm.title} onChange={(e) => setVisitForm({ ...visitForm, title: e.target.value })} placeholder="e.g. Rack Build Day 1" />
             </VisitFormField>
             <VisitFormField label="Scheduled Start" required>
-              <input type="datetime-local" style={styles.input} required value={visitForm.scheduled_start} onChange={(e) => setVisitForm({ ...visitForm, scheduled_start: e.target.value })} />
+              <input type="datetime-local" step={15 * 60} style={styles.input} required value={visitForm.scheduled_start} onChange={(e) => setVisitForm({ ...visitForm, scheduled_start: e.target.value })} />
             </VisitFormField>
             <VisitFormField label="Scheduled End" required>
-              <input type="datetime-local" style={styles.input} required value={visitForm.scheduled_end} onChange={(e) => setVisitForm({ ...visitForm, scheduled_end: e.target.value })} />
+              <input type="datetime-local" step={15 * 60} style={styles.input} required value={visitForm.scheduled_end} onChange={(e) => setVisitForm({ ...visitForm, scheduled_end: e.target.value })} />
             </VisitFormField>
             <VisitFormField label="Notes">
               <textarea style={{ ...styles.input, resize: "vertical" }} rows={3} value={visitForm.notes} onChange={(e) => setVisitForm({ ...visitForm, notes: e.target.value })} />

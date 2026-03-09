@@ -1,3 +1,4 @@
+from datetime import date as _date
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required
 
@@ -120,11 +121,16 @@ def update_project(project_id):
     updatable = [
         "name", "description", "client_name", "client_email", "client_phone",
         "stage_id", "manager_id", "site_address", "site_city", "site_state",
-        "site_zip", "site_lat", "site_lng", "start_date", "end_date", "trades", "is_archived",
+        "site_zip", "site_lat", "site_lng", "trades", "is_archived",
     ]
     for field in updatable:
         if field in data:
             setattr(project, field, data[field])
+
+    if "start_date" in data:
+        project.start_date = _date.fromisoformat(data["start_date"]) if data["start_date"] else None
+    if "end_date" in data:
+        project.end_date = _date.fromisoformat(data["end_date"]) if data["end_date"] else None
 
     if "custom_fields" in data and isinstance(data["custom_fields"], dict):
         project.custom_fields = {**project.custom_fields, **data["custom_fields"]}
