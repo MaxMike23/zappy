@@ -41,6 +41,7 @@
 - Global visits list page with status and date-range filters
 - Visits section inline on Work Order detail (quick create + clock-in/out per row)
 - Direct Visits section inline on Project detail (site surveys, walkthroughs)
+- **Mobile UX overhaul:** Role-aware dashboard — technicians see a card-based view of upcoming visits and assigned work orders with inline clock-in/out; admins/managers see stat cards and summary lists. Bottom tab navigation replaces hamburger menu on mobile (≤768px). Desktop sidebar unchanged.
 
 ### 2C — Team Management UI ✅ COMPLETE
 - Users list (company-scoped) with role and active-status filters

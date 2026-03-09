@@ -66,8 +66,10 @@ class Visit(db.Model):
         return {
             "id": str(self.id),
             "company_id": str(self.company_id),
-            "work_order_id": str(self.work_order_id) if self.work_order_id else None,
-            "project_id":    str(self.project_id)    if self.project_id    else None,
+            "work_order_id":    str(self.work_order_id) if self.work_order_id else None,
+            "work_order_title": self.work_order.title if self.work_order else None,
+            "project_id":       str(self.project_id)  if self.project_id  else None,
+            "project_name":     self.project.name     if self.project     else None,
             "created_by_id": str(self.created_by_id) if self.created_by_id else None,
             "title": self.title,
             "status": self.status,

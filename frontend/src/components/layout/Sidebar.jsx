@@ -2,24 +2,23 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 
 const NAV_ITEMS = [
-  { to: "/dashboard",   label: "Dashboard",    roles: ["company_admin", "manager", "technician", "sales", "superadmin"] },
-  { to: "/projects",    label: "Projects",     roles: ["company_admin", "manager", "sales", "superadmin"] },
-  { to: "/work-orders", label: "Work Orders",  roles: ["company_admin", "manager", "technician", "superadmin"] },
-  { to: "/visits",      label: "Visits",       roles: ["company_admin", "manager", "technician", "superadmin"] },
-  { to: "/time-logs",   label: "Time Logs",    roles: ["company_admin", "manager", "technician", "superadmin"] },
-  { to: "/users",       label: "Users",        roles: ["company_admin", "superadmin"] },
-  { to: "/settings",    label: "Settings",     roles: ["company_admin", "superadmin"] },
+  { to: "/dashboard",   label: "Dashboard",   roles: ["company_admin", "manager", "technician", "sales", "superadmin"] },
+  { to: "/projects",    label: "Projects",    roles: ["company_admin", "manager", "sales", "superadmin"] },
+  { to: "/work-orders", label: "Work Orders", roles: ["company_admin", "manager", "technician", "superadmin"] },
+  { to: "/visits",      label: "Visits",      roles: ["company_admin", "manager", "technician", "superadmin"] },
+  { to: "/time-logs",   label: "Time Logs",   roles: ["company_admin", "manager", "technician", "superadmin"] },
+  { to: "/users",       label: "Team",        roles: ["company_admin", "superadmin"] },
+  { to: "/settings",    label: "Settings",    roles: ["company_admin", "superadmin"] },
 ];
 
-export default function Sidebar({ isOpen, onClose }) {
+export default function Sidebar() {
   const { user, logout } = useAuth();
-
   if (!user) return null;
 
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(user.role));
 
   return (
-    <aside className={`app-sidebar${isOpen ? " open" : ""}`} style={styles.sidebar}>
+    <aside className="app-sidebar" style={styles.sidebar}>
       <div style={styles.logo}>Zappy</div>
 
       <nav style={styles.nav}>
@@ -27,7 +26,6 @@ export default function Sidebar({ isOpen, onClose }) {
           <NavLink
             key={item.to}
             to={item.to}
-            onClick={onClose}
             style={({ isActive }) => ({
               ...styles.navLink,
               ...(isActive ? styles.navLinkActive : {}),
@@ -41,9 +39,7 @@ export default function Sidebar({ isOpen, onClose }) {
       <div style={styles.userSection}>
         <div style={styles.userName}>{user.full_name}</div>
         <div style={styles.userRole}>{user.role.replace("_", " ")}</div>
-        <button style={styles.logoutBtn} onClick={() => { onClose?.(); logout(); }}>
-          Sign out
-        </button>
+        <button style={styles.logoutBtn} onClick={logout}>Sign out</button>
       </div>
     </aside>
   );

@@ -181,9 +181,9 @@ export default function VisitsPage() {
                     <td style={{ ...styles.td, fontWeight: 600, color: "#111827" }}>{v.title}</td>
                     <td style={styles.td}>
                       {v.work_order_id ? (
-                        <Link to={`/work-orders/${v.work_order_id}`} style={styles.link} onClick={(e) => e.stopPropagation()}>Work Order</Link>
+                        <Link to={`/work-orders/${v.work_order_id}`} style={styles.link} onClick={(e) => e.stopPropagation()}>{v.work_order_title || "Work Order"}</Link>
                       ) : v.project_id ? (
-                        <Link to={`/projects/${v.project_id}`} style={styles.link} onClick={(e) => e.stopPropagation()}>Project</Link>
+                        <Link to={`/projects/${v.project_id}`} style={styles.link} onClick={(e) => e.stopPropagation()}>{v.project_name || "Project"}</Link>
                       ) : <span style={styles.muted}>—</span>}
                     </td>
                     <td style={styles.td}><Badge label={v.status.replace("_", " ")} color={STATUS_COLORS[v.status]} /></td>
