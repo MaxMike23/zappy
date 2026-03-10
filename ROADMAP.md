@@ -57,6 +57,7 @@
 - Manager controls: approve / reject individual logs
 - Summary view: total hours by technician and by work order
 - Time summary section on dashboard (admin/manager view)
+- **Company-wide attendance clock-in/out:** separate from visit-level clock-in/out; tracks when a technician starts and ends their workday (e.g. arriving at the office, leaving after all jobs). `Attendance` model stores one record per user per day with `clock_in` / `clock_out` timestamps. Feature is opt-in per company — toggled by company admin in Settings. When enabled, technicians see a prominent "Clock In" / "Clock Out" button at the top of their mobile dashboard. Attendance records visible to admin/manager alongside time logs.
 
 ### 2E — File Uploads UI
 - File gallery on work order and project detail pages (already partially live — upload + download)
