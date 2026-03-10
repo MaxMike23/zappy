@@ -207,7 +207,7 @@ export default function WorkOrderDetailPage() {
   const stage = stages.find((s) => s.id === (editing ? editForm.stage_id : wo.stage_id)) || wo.stage;
 
   return (
-    <div style={styles.page}>
+    <div className="wo-detail-page">
       {/* Main column */}
       <div style={styles.main}>
         {/* Breadcrumb */}
@@ -376,7 +376,8 @@ export default function WorkOrderDetailPage() {
           {visits.length === 0 ? (
             <p style={{ fontSize: 14, color: "#9CA3AF" }}>No visits scheduled.</p>
           ) : (
-            <div style={styles.tableWrap}>
+            {/* Desktop visit table */}
+            <div className="wo-visit-table">
               <table style={styles.table}>
                 <thead>
                   <tr>
@@ -410,12 +411,41 @@ export default function WorkOrderDetailPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile visit cards */}
+            <div className="wo-visit-cards">
+              {visits.map((v) => {
+                const isAssigned = v.assignees?.some((a) => a.id === user?.id);
+                const canClock = isAssigned || canEdit;
+                return (
+                  <div key={v.id} style={styles.visitCard}>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 4 }}>{v.title}</div>
+                    <div style={{ fontSize: 13, color: "#6B7280", marginBottom: 8 }}>{formatDateTime(v.scheduled_start)}</div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 4 }}>
+                      <Badge label={v.status.replace("_", " ")} color={STATUS_COLORS[v.status]} />
+                      {v.assignees?.length > 0 && (
+                        <span style={{ fontSize: 12, color: "#6B7280" }}>{v.assignees.map((a) => a.full_name).join(", ")}</span>
+                      )}
+                    </div>
+                    {v.duration_minutes != null && (
+                      <div style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 8 }}>{v.duration_minutes} min</div>
+                    )}
+                    {canClock && v.status === "scheduled" && (
+                      <button style={{ ...styles.clockBtn, width: "100%", padding: "10px", marginTop: 6 }} onClick={() => handleClockIn(v.id)}>Clock In</button>
+                    )}
+                    {canClock && v.is_running && (
+                      <button style={{ ...styles.clockBtn, background: "#F59E0B", width: "100%", padding: "10px", marginTop: 6 }} onClick={() => handleClockOut(v.id)}>Clock Out</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
 
       {/* Right sidebar */}
-      <div style={styles.sidebar}>
+      <div className="wo-detail-sidebar">
         {/* Assignees */}
         <div style={styles.card}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -623,9 +653,7 @@ const checkLabelStyle = {
 };
 
 const styles = {
-  page:         { display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" },
   main:         { flex: 1, minWidth: 0 },
-  sidebar:      { width: 280, flexShrink: 0, display: "flex", flexDirection: "column", gap: 16 },
   breadcrumb:   { display: "flex", alignItems: "center", gap: 6, marginBottom: 16, fontSize: 13 },
   breadcrumbLink: { color: "#6B7280" },
   sep:          { color: "#D1D5DB" },
@@ -653,9 +681,9 @@ const styles = {
   linkBtn:      { background: "none", border: "none", cursor: "pointer", color: "#3B82F6", fontSize: 13, fontWeight: 600, padding: 0 },
   errorMsg:     { color: "#B91C1C", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, padding: "10px 14px", fontSize: 13, marginBottom: 12 },
   input:        { padding: "8px 10px", border: "1px solid #D1D5DB", borderRadius: 6, fontSize: 14, outline: "none", fontFamily: "inherit", width: "100%" },
-  tableWrap:    { overflowX: "auto" },
   table:        { width: "100%", borderCollapse: "collapse", fontSize: 13 },
   th:           { textAlign: "left", padding: "10px 14px", background: "#F9FAFB", borderBottom: "1px solid #E5E7EB", fontSize: 12, fontWeight: 600, color: "#6B7280", whiteSpace: "nowrap" },
   visitTd:      { padding: "10px 14px", color: "#374151", verticalAlign: "middle" },
   clockBtn:     { padding: "4px 12px", background: "#111827", color: "#fff", border: "none", borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: "pointer" },
+  visitCard:    { background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column" },
 };

@@ -24,6 +24,12 @@ a { color: inherit; text-decoration: none; }
 .wo-table-wrap { display: block; }
 .wo-card-list  { display: none;  }
 
+/* ── Work order detail layout ────────────────────────────────────────────── */
+.wo-detail-page    { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.wo-detail-sidebar { display: flex; flex-direction: column; gap: 16px; width: 280px; flex-shrink: 0; }
+.wo-visit-table    { overflow-x: auto; }
+.wo-visit-cards    { display: none; }
+
 /* ── Responsive: ≤768px ──────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   /* Sidebar hidden on mobile — bottom nav takes over navigation */
@@ -44,4 +50,10 @@ a { color: inherit; text-decoration: none; }
   /* Work orders: hide table, show cards */
   .wo-table-wrap { display: none; }
   .wo-card-list  { display: flex; flex-direction: column; gap: 10px; }
+
+  /* Work order detail: stack sidebar below main, visits become cards */
+  .wo-detail-page    { flex-direction: column; }
+  .wo-detail-sidebar { width: 100%; }
+  .wo-visit-table    { display: none; }
+  .wo-visit-cards    { display: flex; flex-direction: column; gap: 10px; }
 }
