@@ -51,9 +51,7 @@ const styles = {
     minHeight: "100vh",
     background: "#111827",
     color: "#F9FAFB",
-    display: "flex",
     flexDirection: "column",
-    flexShrink: 0,
   },
   logo: {
     fontSize: 22,
