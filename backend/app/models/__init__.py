@@ -10,6 +10,7 @@ from app.models.time_log import TimeLog
 from app.models.file import UploadedFile
 from app.models.audit import AuditLog
 from app.models.visit import Visit, visit_assignments, VisitStatus
+from app.models.attendance import Attendance
 
 __all__ = [
     "Company",
@@ -28,4 +29,5 @@ __all__ = [
     "Visit",
     "visit_assignments",
     "VisitStatus",
+    "Attendance",
 ]

@@ -84,7 +84,7 @@ def clean_db(app):
         conn.execute(text(
             "TRUNCATE TABLE "
             "audit_logs, uploaded_files, time_logs, "
-            "visit_assignments, visits, "
+            "attendances, visit_assignments, visits, "
             "work_order_notes, work_order_assignments, work_orders, "
             "projects, workflow_field_definitions, workflow_stages, "
             "token_blocklist, users, company_modules, companies "
