@@ -169,7 +169,8 @@ export default function WorkOrdersPage() {
         />
       ) : (
         <>
-          <div style={styles.tableWrap}>
+          {/* Desktop table */}
+          <div className="wo-table-wrap" style={styles.tableWrap}>
             <table style={styles.table}>
               <thead>
                 <tr>
@@ -192,6 +193,27 @@ export default function WorkOrdersPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="wo-card-list">
+            {workOrders.map((wo) => (
+              <div key={wo.id} style={styles.card} onClick={() => navigate(`/work-orders/${wo.id}`)}>
+                <div style={styles.cardTitle}>{wo.title}</div>
+                <div style={styles.cardAssignees}>
+                  {wo.assignees?.length ? wo.assignees.map((a) => a.full_name).join(", ") : <span style={styles.muted}>Unassigned</span>}
+                </div>
+                {wo.trades?.length > 0 && (
+                  <div style={styles.cardTrades}>
+                    {wo.trades.map((t) => <span key={t} style={styles.tradePill}>{TRADE_LABEL[t] || t}</span>)}
+                  </div>
+                )}
+                <div style={styles.cardBadges}>
+                  {wo.stage && <Badge label={wo.stage.name} color={wo.stage.color} />}
+                  <Badge label={wo.priority} color={PRIORITY_COLORS[wo.priority]} />
+                </div>
+              </div>
+            ))}
           </div>
 
           {pagination && (pagination.has_prev || pagination.has_next) && (
@@ -340,4 +362,10 @@ const styles = {
   row2:         { display: "flex", gap: 12 },
   input:        { padding: "8px 10px", border: "1px solid #D1D5DB", borderRadius: 6, fontSize: 14, outline: "none", fontFamily: "inherit", width: "100%" },
   cancelBtn:    { padding: "8px 18px", background: "#fff", color: "#374151", border: "1px solid #D1D5DB", borderRadius: 6, fontSize: 13, cursor: "pointer" },
+  card:         { background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, padding: "14px 16px", cursor: "pointer", display: "flex", flexDirection: "column", gap: 6 },
+  cardTitle:    { fontSize: 15, fontWeight: 700, color: "#111827" },
+  cardAssignees:{ fontSize: 13, color: "#6B7280" },
+  cardTrades:   { display: "flex", flexWrap: "wrap", gap: 6 },
+  tradePill:    { fontSize: 11, background: "#F3F4F6", color: "#374151", borderRadius: 12, padding: "2px 8px" },
+  cardBadges:   { display: "flex", gap: 6, flexWrap: "wrap", marginTop: 2 },
 };

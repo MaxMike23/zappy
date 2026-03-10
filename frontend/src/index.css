@@ -20,6 +20,10 @@ a { color: inherit; text-decoration: none; }
 /* Bottom nav — desktop: hidden; mobile: shown */
 .bottom-nav { display: none; }
 
+/* ── Work order list: table vs cards ─────────────────────────────────────── */
+.wo-table-wrap { display: block; }
+.wo-card-list  { display: none;  }
+
 /* ── Responsive: ≤768px ──────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   /* Sidebar hidden on mobile — bottom nav takes over navigation */
@@ -36,4 +40,8 @@ a { color: inherit; text-decoration: none; }
     z-index: 300;
     align-items: stretch;
   }
+
+  /* Work orders: hide table, show cards */
+  .wo-table-wrap { display: none; }
+  .wo-card-list  { display: flex; flex-direction: column; gap: 10px; }
 }

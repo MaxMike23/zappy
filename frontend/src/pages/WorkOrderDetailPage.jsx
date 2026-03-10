@@ -74,7 +74,7 @@ export default function WorkOrderDetailPage() {
       workflowApi.listFields("work_order"),
       workOrdersApi.listNotes(id),
       filesApi.list({ work_order_id: id }),
-      client.get("/users/"),
+      client.get("/users/").catch(() => ({ data: { items: [] } })),
       visitsApi.list({ work_order_id: id, per_page: 50 }),
     ]).then(([woRes, stagesRes, fieldsRes, notesRes, filesRes, usersRes, visitsRes]) => {
       const w = woRes.data.work_order;
