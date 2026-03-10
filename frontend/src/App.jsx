@@ -10,7 +10,9 @@ import ProjectDetailPage from "@/pages/ProjectDetailPage";
 import WorkOrdersPage from "@/pages/WorkOrdersPage";
 import WorkOrderDetailPage from "@/pages/WorkOrderDetailPage";
 import VisitsPage from "@/pages/VisitsPage";
+import TimeLogsPage from "@/pages/TimeLogsPage";
 import UsersPage from "@/pages/UsersPage";
+import SettingsPage from "@/pages/SettingsPage";
 
 /**
  * Route structure:
@@ -45,9 +47,9 @@ export default function App() {
             <Route path="/work-orders"     element={<WorkOrdersPage />} />
             <Route path="/work-orders/:id" element={<WorkOrderDetailPage />} />
             <Route path="/visits"          element={<VisitsPage />} />
-            <Route path="/time-logs"   element={<ComingSoon title="Time Logs" />} />
+            <Route path="/time-logs"   element={<TimeLogsPage />} />
             <Route path="/users"       element={<UsersPage />} />
-            <Route path="/settings"    element={<ComingSoon title="Settings" />} />
+            <Route path="/settings"    element={<SettingsPage />} />
           </Route>
 
           {/* 404 fallback */}

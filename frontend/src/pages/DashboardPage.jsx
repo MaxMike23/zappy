@@ -4,6 +4,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { visitsApi } from "@/api/visits";
 import { workOrdersApi } from "@/api/workOrders";
 import { projectsApi } from "@/api/projects";
+import { attendanceApi } from "@/api/attendance";
 import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
 
@@ -42,27 +43,34 @@ function fmtDateTime(iso) {
 
 // ── Technician dashboard ────────────────────────────────────────────────────
 
-function TechDashboard({ user }) {
-  const [visits, setVisits]     = useState([]);
-  const [workOrders, setWOs]    = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [clockingId, setClock]  = useState(null);
+function TechDashboard({ user, company }) {
+  const [visits, setVisits]         = useState([]);
+  const [workOrders, setWOs]        = useState([]);
+  const [attendance, setAttendance] = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [clockingId, setClock]      = useState(null);
+  const [attendClocking, setAttClock] = useState(false);
+
+  const attendanceEnabled = company?.settings?.attendance_tracking === true;
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [vRes, wRes] = await Promise.all([
+      const fetches = [
         visitsApi.list({ scheduled_after: todayStart(), per_page: 10 }),
         workOrdersApi.list({ per_page: 6 }),
-      ]);
-      setVisits(vRes.data.items);
-      setWOs(wRes.data.items);
+      ];
+      if (attendanceEnabled) fetches.push(attendanceApi.today());
+      const results = await Promise.all(fetches);
+      setVisits(results[0].data.items);
+      setWOs(results[1].data.items);
+      if (attendanceEnabled) setAttendance(results[2].data.attendance);
     } catch {
       // fail silently — data just won't show
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [attendanceEnabled]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -78,12 +86,47 @@ function TechDashboard({ user }) {
     setClock(null);
   };
 
+  const handleAttendanceClockIn = async () => {
+    setAttClock(true);
+    try { const r = await attendanceApi.clockIn(); setAttendance(r.data.attendance); } catch { /* ignore */ }
+    setAttClock(false);
+  };
+
+  const handleAttendanceClockOut = async () => {
+    setAttClock(true);
+    try { const r = await attendanceApi.clockOut(); setAttendance(r.data.attendance); } catch { /* ignore */ }
+    setAttClock(false);
+  };
+
   if (loading) return <div style={s.center}><Spinner size={28} /></div>;
 
   return (
     <div>
       <div style={s.greeting}>{greeting()}, {user.first_name}</div>
       <div style={s.role}>Technician</div>
+
+      {/* Company-wide attendance clock-in/out */}
+      {attendanceEnabled && (
+        <div style={s.attendanceBar}>
+          <div style={s.attendanceLabel}>
+            {attendance?.is_clocked_in
+              ? "You are clocked in for the day."
+              : attendance
+              ? "You have clocked out for the day."
+              : "You have not clocked in yet today."}
+          </div>
+          {!attendance && (
+            <button style={s.clockInBtn} disabled={attendClocking} onClick={handleAttendanceClockIn}>
+              {attendClocking ? "…" : "Clock In"}
+            </button>
+          )}
+          {attendance?.is_clocked_in && (
+            <button style={s.clockOutBtn} disabled={attendClocking} onClick={handleAttendanceClockOut}>
+              {attendClocking ? "…" : "Clock Out"}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Upcoming Visits */}
       <Section title="Upcoming Visits" linkTo="/visits" linkLabel="View all">
@@ -272,10 +315,10 @@ function EmptyCard({ message }) {
 // ── Root ────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, company } = useAuth();
   if (!user) return null;
 
-  if (TECH_ROLES.includes(user.role)) return <TechDashboard user={user} />;
+  if (TECH_ROLES.includes(user.role)) return <TechDashboard user={user} company={company} />;
   return <AdminDashboard user={user} />;
 }
 
@@ -294,6 +337,8 @@ const s = {
   cardTitle:     { fontWeight: 700, fontSize: 14, color: "#111827", lineHeight: 1.3, flex: 1 },
   parentLink:    { fontSize: 12, color: "#3B82F6", marginBottom: 4, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   cardMeta:      { fontSize: 12, color: "#6B7280", marginTop: 2 },
+  attendanceBar: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, padding: "14px 18px", marginBottom: 24, flexWrap: "wrap" },
+  attendanceLabel:{ fontSize: 14, color: "#374151", flex: 1 },
   clockInBtn:    { padding: "7px 16px", background: "#111827", color: "#fff", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: "pointer", marginRight: 6 },
   clockOutBtn:   { padding: "7px 16px", background: "#F59E0B", color: "#fff", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: "pointer" },
   statCard:      { background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 10, padding: "20px 16px", textAlign: "center" },

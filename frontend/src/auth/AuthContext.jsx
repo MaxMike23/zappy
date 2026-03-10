@@ -71,6 +71,12 @@ export function AuthProvider({ children }) {
     return res.data;
   };
 
+  const refreshUser = useCallback(async () => {
+    const res = await client.get("/auth/me");
+    setUser(res.data.user);
+    setCompany(res.data.company || null);
+  }, []);
+
   const value = {
     user,
     company,
@@ -79,6 +85,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     register,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
