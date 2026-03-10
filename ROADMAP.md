@@ -30,7 +30,7 @@
 - Work orders list with filters (stage, priority, trade, assigned tech)
 - Work order detail page: notes thread, file attachments, assigned techs
 - Custom field rendering driven by `workflow_field_definitions`
-- Responsive layout: desktop sidebar + content panel; mobile hamburger overlay + stacked single-column view
+- Responsive layout: desktop sidebar + wide content panels; mobile bottom-nav + card-based work order list; work order detail stacks sidebar below main content on mobile; visits within detail shown as tap-friendly cards with full-width clock-in/out buttons
 - **Trade tagging:** projects and work orders each carry a `trade` field (from the shared 15-trade list); filter bar on both list pages; out-of-spec amber warning shown in edit/create forms when the selected trade is not in the company's declared specializations
 
 ### 2B — Visits (Scheduled On-Site Trips) ✅ COMPLETE
@@ -52,18 +52,18 @@
 - Managers see the team list read-only; admins get full write access
 
 ### 2D — Time Tracking UI
-- Log time against a work order
-- Technician view: own logs only
-- Manager view: all logs, approve/reject, export summary
-- Time summary widget on dashboard
+- Time logs list page: all logs for admin/manager; own logs only for technicians
+- Log time modal: work order selector, date, hours, description
+- Manager controls: approve / reject individual logs
+- Summary view: total hours by technician and by work order
+- Time summary section on dashboard (admin/manager view)
 
-### 2D — File Uploads UI
-- Upload files to a work order or project
-- File gallery/list with download links
-- Delete with permission check
-- Checklist field type rendering (defined in Phase 1 schema)
+### 2E — File Uploads UI
+- File gallery on work order and project detail pages (already partially live — upload + download)
+- Full delete with permission check (owner or admin)
+- Checklist custom field type rendering (defined in Phase 1 schema)
 
-### 2E — Workflow Configuration UI
+### 2F — Workflow Configuration UI
 - Manage stages: add, rename, reorder, set terminal/success flags
 - Configure `stage_requirements` (min files, required fields before stage transition)
 - Manage custom field definitions per module (project/work_order)
