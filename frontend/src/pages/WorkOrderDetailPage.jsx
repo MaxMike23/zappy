@@ -376,6 +376,7 @@ export default function WorkOrderDetailPage() {
           {visits.length === 0 ? (
             <p style={{ fontSize: 14, color: "#9CA3AF" }}>No visits scheduled.</p>
           ) : (
+            <>
             {/* Desktop visit table */}
             <div className="wo-visit-table">
               <table style={styles.table}>
@@ -440,6 +441,7 @@ export default function WorkOrderDetailPage() {
                 );
               })}
             </div>
+            </>
           )}
         </div>
       </div>
