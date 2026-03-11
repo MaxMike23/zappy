@@ -80,6 +80,27 @@ function FieldRow({ field, value, editing, onChange }) {
     case "url":
       control = <input type="url" {...inputProps} placeholder="https://" />;
       break;
+    case "checklist": {
+      const items = field.field_config?.items ?? [];
+      const checked = (typeof value === "object" && value !== null && !Array.isArray(value)) ? value : {};
+      control = (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "4px 0" }}>
+          {items.map((item) => (
+            <label key={item} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#374151", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={!!checked[item]}
+                onChange={(e) => onChange?.(field.field_key, { ...checked, [item]: e.target.checked })}
+                style={{ width: 15, height: 15, cursor: "pointer" }}
+              />
+              {item}
+            </label>
+          ))}
+          {items.length === 0 && <span style={{ color: "#9CA3AF", fontSize: 13 }}>No items defined.</span>}
+        </div>
+      );
+      break;
+    }
     default:
       control = <input type="text" {...inputProps} />;
   }
@@ -100,6 +121,20 @@ function formatReadValue(field, value) {
   if (field.field_type === "checkbox") return value ? "Yes" : "No";
   if (field.field_type === "url") {
     return <a href={value} target="_blank" rel="noreferrer" style={{ color: "#3B82F6" }}>{value}</a>;
+  }
+  if (field.field_type === "checklist") {
+    const items = field.field_config?.items ?? [];
+    const checked = (typeof value === "object" && value !== null && !Array.isArray(value)) ? value : {};
+    if (items.length === 0) return <span style={{ color: "#9CA3AF" }}>—</span>;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {items.map((item) => (
+          <span key={item} style={{ fontSize: 13, color: checked[item] ? "#111827" : "#9CA3AF", display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 12 }}>{checked[item] ? "✓" : "○"}</span> {item}
+          </span>
+        ))}
+      </div>
+    );
   }
   return String(value);
 }

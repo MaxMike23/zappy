@@ -8,9 +8,9 @@ from app.models.file import UploadedFile
 from app.models.user import UserRole
 from app.utils.uploads import save_upload, delete_upload, get_full_path
 from app.utils.decorators import (
-    require_role,
     get_current_user_id,
     get_current_company_id,
+    get_current_role,
     is_superadmin,
 )
 
@@ -107,14 +107,22 @@ def list_files():
 
 @files_bp.delete("/<uuid:file_id>")
 @jwt_required()
-@require_role(UserRole.COMPANY_ADMIN, UserRole.MANAGER, UserRole.SUPERADMIN)
 def delete_file(file_id):
     company_id = get_current_company_id()
     current_user_id = get_current_user_id()
+    role = get_current_role()
 
     uploaded = UploadedFile.query.get_or_404(file_id)
     if not is_superadmin() and str(uploaded.company_id) != str(company_id):
         return jsonify({"error": "Not found"}), 404
+
+    can_delete = (
+        is_superadmin()
+        or role in (UserRole.COMPANY_ADMIN, UserRole.MANAGER)
+        or str(uploaded.uploaded_by_id) == str(current_user_id)
+    )
+    if not can_delete:
+        return jsonify({"error": "Insufficient permissions"}), 403
 
     delete_upload(uploaded.storage_path)
     db.session.delete(uploaded)

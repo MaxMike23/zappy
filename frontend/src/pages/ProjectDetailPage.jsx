@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { TRADES, TRADE_LABEL } from "@/constants/trades";
@@ -6,6 +6,7 @@ import { projectsApi } from "@/api/projects";
 import { workOrdersApi } from "@/api/workOrders";
 import { workflowApi } from "@/api/workflow";
 import { visitsApi } from "@/api/visits";
+import { filesApi } from "@/api/files";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
@@ -50,6 +51,9 @@ export default function ProjectDetailPage() {
   const [visitForm, setVisitForm]               = useState({ title: "", scheduled_start: "", scheduled_end: "", notes: "" });
   const [visitCreating, setVisitCreating]       = useState(false);
   const [visitError, setVisitError]             = useState("");
+  const [files, setFiles]                       = useState([]);
+  const [fileUploading, setFileUploading]       = useState(false);
+  const fileInputRef = useRef(null);
 
   const { user, company } = useAuth();
   const canEdit = EDIT_ROLES.includes(user?.role);
@@ -63,7 +67,8 @@ export default function ProjectDetailPage() {
       workOrdersApi.list({ project_id: id, per_page: 50 }),
       workflowApi.listStages("work_order"),
       visitsApi.list({ project_id: id, per_page: 50 }),
-    ]).then(([projRes, stagesRes, fieldsRes, wosRes, woStagesRes, visitsRes]) => {
+      filesApi.list({ project_id: id }),
+    ]).then(([projRes, stagesRes, fieldsRes, wosRes, woStagesRes, visitsRes, filesRes]) => {
       const p = projRes.data.project;
       setProject(p);
       setEditForm(toEditForm(p));
@@ -72,6 +77,7 @@ export default function ProjectDetailPage() {
       setWorkOrders(wosRes.data.items);
       setWoStages(woStagesRes.data.stages);
       setDirectVisits(visitsRes.data.items.filter((v) => !v.work_order_id));
+      setFiles(filesRes.data.files);
     }).catch(() => setError("Failed to load project."))
       .finally(() => setLoading(false));
   }, [id]);
@@ -144,6 +150,43 @@ export default function ProjectDetailPage() {
     try {
       const res = await visitsApi.clockOut(visitId);
       setDirectVisits((prev) => prev.map((v) => v.id === visitId ? res.data.visit : v));
+    } catch {/* no-op */}
+  };
+
+  const handleFileUpload = async (e) => {
+    const uploadFiles = Array.from(e.target.files);
+    if (!uploadFiles.length) return;
+    setFileUploading(true);
+    try {
+      for (const file of uploadFiles) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("project_id", id);
+        const res = await filesApi.upload(fd);
+        setFiles((prev) => [res.data.file, ...prev]);
+      }
+    } catch {/* no-op */} finally {
+      setFileUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleFileDownload = async (file) => {
+    try {
+      const res = await filesApi.download(file.id);
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.original_filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {/* no-op */}
+  };
+
+  const handleFileDelete = async (fileId) => {
+    try {
+      await filesApi.delete(fileId);
+      setFiles((prev) => prev.filter((f) => f.id !== fileId));
     } catch {/* no-op */}
   };
 
@@ -353,6 +396,36 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
+      {/* Files */}
+      <div style={styles.section}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h2 style={styles.sectionTitle}>Files</h2>
+          <button style={styles.secondaryBtn} onClick={() => fileInputRef.current?.click()} disabled={fileUploading}>
+            {fileUploading ? "Uploading…" : "Upload File"}
+          </button>
+        </div>
+        <input ref={fileInputRef} type="file" multiple style={{ display: "none" }} onChange={handleFileUpload} />
+        {files.length === 0 ? (
+          <p style={{ fontSize: 14, color: "#9CA3AF" }}>No files attached.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {files.map((f) => (
+              <div key={f.id} style={projectFileRow}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <button style={projectFileLink} onClick={() => handleFileDownload(f)}>{f.original_filename}</button>
+                  <div style={{ fontSize: 11, color: "#9CA3AF" }}>
+                    {formatFileBytes(f.file_size)} · {f.uploaded_by_name} · {formatFileTimeAgo(f.created_at)}
+                  </div>
+                </div>
+                {(canEdit || f.uploaded_by_id === user?.id) && (
+                  <button style={fileDeleteBtn} onClick={() => handleFileDelete(f.id)} title="Delete file">✕</button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* New Work Order Modal */}
       {showWoModal && (
         <Modal title="New Work Order" onClose={() => setShowWoModal(false)}>
@@ -492,6 +565,30 @@ const checkGridStyle = {
 const checkLabelStyle = {
   display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#374151", cursor: "pointer",
 };
+
+function formatFileBytes(bytes) {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function formatFileTimeAgo(iso) {
+  if (!iso) return "";
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)  return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+const projectFileRow  = { display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 12px", background: "#fff", border: "1px solid #E5E7EB", borderRadius: 8 };
+const projectFileLink = { background: "none", border: "none", cursor: "pointer", color: "#3B82F6", fontSize: 13, padding: 0, textAlign: "left", fontFamily: "inherit", textDecoration: "underline", wordBreak: "break-all" };
+const fileDeleteBtn   = { background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 12, padding: "0 4px", flexShrink: 0 };
 
 function formatDate(dateStr) {
   if (!dateStr) return "";

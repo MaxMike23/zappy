@@ -160,6 +160,13 @@ export default function WorkOrderDetailPage() {
     } catch {/* no-op */}
   };
 
+  const handleFileDelete = async (fileId) => {
+    try {
+      await filesApi.delete(fileId);
+      setFiles((prev) => prev.filter((f) => f.id !== fileId));
+    } catch {/* no-op */}
+  };
+
   const handleSaveAssignees = async () => {
     setSavingAssignees(true);
     try {
@@ -510,6 +517,9 @@ export default function WorkOrderDetailPage() {
                       {formatBytes(f.file_size)} · {f.uploaded_by_name} · {formatTimeAgo(f.created_at)}
                     </div>
                   </div>
+                  {(canEdit || f.uploaded_by_id === user?.id) && (
+                    <button style={styles.deleteBtn} onClick={() => handleFileDelete(f.id)} title="Delete file">✕</button>
+                  )}
                 </div>
               ))}
             </div>
