@@ -51,13 +51,14 @@
 - Deactivate / Reactivate actions with confirmation (admin only, self-protected)
 - Managers see the team list read-only; admins get full write access
 
-### 2D — Time Tracking UI
+### 2D — Time Tracking UI ✅ COMPLETE
 - Time logs list page: all logs for admin/manager; own logs only for technicians
-- Log time modal: work order selector, date, hours, description
-- Manager controls: approve / reject individual logs
-- Summary view: total hours by technician and by work order
-- Time summary section on dashboard (admin/manager view)
-- **Company-wide attendance clock-in/out:** separate from visit-level clock-in/out; tracks when a technician starts and ends their workday (e.g. arriving at the office, leaving after all jobs). `Attendance` model stores one record per user per day with `clock_in` / `clock_out` timestamps. Feature is opt-in per company — toggled by company admin in Settings. When enabled, technicians see a prominent "Clock In" / "Clock Out" button at the top of their mobile dashboard. Attendance records visible to admin/manager alongside time logs.
+- Log time modal: work order selector, start/end datetime, notes
+- Manager controls: approve / reject individual logs; rejected logs revert to pending
+- Hours summary cards by technician (total hours + log count)
+- Filters: date range, approval status
+- **Company-wide attendance clock-in/out:** separate from visit-level clock-in/out; tracks when a technician starts and ends their workday (e.g. arriving at the office, leaving after all jobs). `Attendance` model stores one record per user per day with `clock_in` / `clock_out` timestamps. Feature is opt-in per company — toggled by company admin in Settings (`/settings`). When enabled, technicians see a prominent "Clock In" / "Clock Out" bar at the top of their dashboard. Unique constraint prevents double clock-in per user per day.
+- **Settings page** (`/settings`): company info panel + attendance_tracking toggle (admin only); uses `refreshUser()` in AuthContext so the change takes effect without re-login
 
 ### 2E — File Uploads UI
 - File gallery on work order and project detail pages (already partially live — upload + download)
@@ -190,4 +191,4 @@ This is what differentiates Zappy from generic field service software.
 - Soft deletes only: `is_archived` on projects/work orders, `is_active` on users
 - Audit log is append-only — never updated or deleted
 - `stage_requirements` JSONB on `WorkflowStage` — gates checked before stage transition (enforcement in Phase 2E)
-- `FieldType.CHECKLIST` supported — UI rendering in Phase 2D
+- `FieldType.CHECKLIST` supported — UI rendering in Phase 2E
