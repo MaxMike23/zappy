@@ -60,10 +60,10 @@
 - **Company-wide attendance clock-in/out:** separate from visit-level clock-in/out; tracks when a technician starts and ends their workday (e.g. arriving at the office, leaving after all jobs). `Attendance` model stores one record per user per day with `clock_in` / `clock_out` timestamps. Feature is opt-in per company — toggled by company admin in Settings (`/settings`). When enabled, technicians see a prominent "Clock In" / "Clock Out" bar at the top of their dashboard. Unique constraint prevents double clock-in per user per day.
 - **Settings page** (`/settings`): company info panel + attendance_tracking toggle (admin only); uses `refreshUser()` in AuthContext so the change takes effect without re-login
 
-### 2E — File Uploads UI
-- File gallery on work order and project detail pages (already partially live — upload + download)
-- Full delete with permission check (owner or admin)
-- Checklist custom field type rendering (defined in Phase 1 schema)
+### 2E — File Uploads UI ✅ COMPLETE
+- File gallery on work order and project detail pages (upload + download + delete)
+- Delete permission check: file owner (any role) OR admin/manager/superadmin
+- Checklist custom field type rendering: checkbox list in edit mode, ✓/○ items read-only; value stored as `{ "item label": bool }` against `field_config.items`
 
 ### 2F — Workflow Configuration UI
 - Manage stages: add, rename, reorder, set terminal/success flags
