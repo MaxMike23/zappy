@@ -65,10 +65,11 @@
 - Delete permission check: file owner (any role) OR admin/manager/superadmin
 - Checklist custom field type rendering: checkbox list in edit mode, ✓/○ items read-only; value stored as `{ "item label": bool }` against `field_config.items`
 
-### 2F — Workflow Configuration UI
-- Manage stages: add, rename, reorder, set terminal/success flags
-- Configure `stage_requirements` (min files, required fields before stage transition)
-- Manage custom field definitions per module (project/work_order)
+### 2F — Workflow Configuration UI ✅ COMPLETE
+- `/workflow` page (admin only) with two tabs: **Stages** and **Custom Fields**, each with a Project / Work Order module switcher
+- Stages: add, rename, color picker, set terminal/success flags, reorder (↑↓), delete (with 409 guard if in use), `stage_requirements` editor (min_files + required_field_keys)
+- Custom Fields: add (type selected at creation, immutable after), edit label/config/required, delete; type-aware `field_config` editor — options list for select/multi_select, items list for checklist, unit for number
+- Sidebar nav link added for company_admin and superadmin
 
 ---
 
