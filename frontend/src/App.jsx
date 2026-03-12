@@ -13,6 +13,7 @@ import VisitsPage from "@/pages/VisitsPage";
 import TimeLogsPage from "@/pages/TimeLogsPage";
 import UsersPage from "@/pages/UsersPage";
 import SettingsPage from "@/pages/SettingsPage";
+import WorkflowPage from "@/pages/WorkflowPage";
 
 /**
  * Route structure:
@@ -50,6 +51,7 @@ export default function App() {
             <Route path="/time-logs"   element={<TimeLogsPage />} />
             <Route path="/users"       element={<UsersPage />} />
             <Route path="/settings"    element={<SettingsPage />} />
+            <Route path="/workflow"    element={<WorkflowPage />} />
           </Route>
 
           {/* 404 fallback */}

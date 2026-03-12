@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: "/visits",      label: "Visits",      roles: ["company_admin", "manager", "technician", "superadmin"] },
   { to: "/time-logs",   label: "Time Logs",   roles: ["company_admin", "manager", "technician", "superadmin"] },
   { to: "/users",       label: "Team",        roles: ["company_admin", "superadmin"] },
+  { to: "/workflow",    label: "Workflow",    roles: ["company_admin", "superadmin"] },
   { to: "/settings",    label: "Settings",    roles: ["company_admin", "superadmin"] },
 ];
 
