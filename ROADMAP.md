@@ -170,6 +170,22 @@ This is what differentiates Zappy from generic field service software.
 
 ---
 
+## Phase 12 — Bid Intelligence (AI Bid Document Analyzer)
+
+**Goal:** Automatically extract and structure requirements from bid documents (RFPs, ITBs, specs) so estimators can quickly assess fit, flag gaps, and pre-populate project data.
+
+*Designed to function as a standalone module or a fully integrated Zappy sub-app. When embedded, bid analysis results link directly to a Project and pre-fill custom fields, trade tags, and scope notes.*
+
+- **PDF ingestion:** upload one or more bid documents (RFP, invitation to bid, spec sheets) per opportunity
+- **AI extraction pipeline:** parse and extract structured data — required device manufacturers/brands, certification requirements (e.g. AVIXA CTS, low-voltage license), scope sections (AV, security, networking), submission deadlines, bonding/insurance requirements, prevailing wage flags
+- **Requirement summary view:** human-readable card per extracted requirement with confidence score and source page reference; click to jump to the source location in the PDF
+- **Gap analysis:** compare extracted requirements against company profile (specializations, certifications on file) and flag mismatches — e.g. "Bid requires Crestron dealer certification — not on file"
+- **Pre-populate project:** one-click create a Project in Zappy from the bid, with trade tag, extracted scope as description, and deadline set from the bid due date
+- **Bid library:** searchable history of all analyzed bids with win/loss tracking once linked to a project outcome
+- **Standalone mode:** can be packaged and marketed as a separate SaaS tool ("Zappy Bid Intel") with its own login, pointing at the same backend or a lightweight independent service
+
+---
+
 ## Phase 11 — Superadmin Platform Tools
 
 **Goal:** Internal tools for managing all Zappy tenants at the platform level.
