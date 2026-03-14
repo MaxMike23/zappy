@@ -87,6 +87,7 @@ def clean_db(app):
             "attendances, visit_assignments, visits, "
             "work_order_notes, work_order_assignments, work_orders, "
             "projects, workflow_field_definitions, workflow_stages, "
+            "device_templates, "
             "token_blocklist, users, company_modules, companies "
             "CASCADE"
         ))

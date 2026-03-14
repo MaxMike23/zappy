@@ -68,6 +68,7 @@ def create_app(config_name: str = None) -> Flask:
     from app.api.files import files_bp
     from app.api.visits import visits_bp
     from app.api.attendance import attendance_bp
+    from app.api.devices import devices_bp
 
     app.register_blueprint(auth_bp,        url_prefix="/api/auth")
     app.register_blueprint(users_bp,       url_prefix="/api/users")
@@ -79,6 +80,7 @@ def create_app(config_name: str = None) -> Flask:
     app.register_blueprint(files_bp,       url_prefix="/api/files")
     app.register_blueprint(visits_bp,      url_prefix="/api/visits")
     app.register_blueprint(attendance_bp,  url_prefix="/api/attendance")
+    app.register_blueprint(devices_bp,     url_prefix="/api/devices/library")
 
     # Health check
     @app.get("/health")
