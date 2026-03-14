@@ -19,11 +19,22 @@ const SIGNAL_TYPES = [
   "Data", "Security", "Access Control", "Fire", "Other",
 ];
 
-const CONNECTOR_TYPES = [
-  "HDMI", "SDI", "DisplayPort", "RS232", "RS485", "XLR", "TRS", "TS",
-  "RCA", "Dante", "AES67", "Cat6", "Fiber", "Relay", "IR", "USB",
-  "Wiegand", "OSDP", "RS485 2-Wire", "Dry Contact", "NAC Circuit", "SLC", "Other",
-];
+// Connectors are filtered by signal type — users can also type a custom value.
+const CONNECTOR_MAP = {
+  "Video":          ["HDMI", "DisplayPort", "SDI", "HD-SDI", "DVI-D", "VGA", "HDBaseT", "BNC / Coax", "USB-C (DP Alt Mode)"],
+  "Audio":          ["XLR", "TRS (1/4\")", "TS (1/4\")", "RCA", "Dante / AES67", "TOSLINK / Optical", "AES/EBU", "HDMI (ARC/eARC)", "USB-C"],
+  "Control":        ["RS232", "RS485", "RS422", "IR", "Relay", "USB-A", "USB-B", "USB-C", "3-Pin Phoenix", "Ethernet (RJ45)"],
+  "Network":        ["Ethernet (RJ45)", "PoE (RJ45)", "SFP", "SFP+", "Fiber (LC)", "Fiber (SC)", "Wi-Fi"],
+  "Power":          ["IEC C13", "IEC C19", "NEMA 5-15", "NEMA 5-20", "DC Barrel", "Terminal Block"],
+  "Data":           ["USB-A", "USB-B", "USB-C", "USB Micro-B", "Thunderbolt", "Ethernet (RJ45)", "SD Card"],
+  "Security":       ["BNC / Coax", "Ethernet (RJ45)", "PoE (RJ45)", "Dry Contact", "Relay", "RS485"],
+  "Access Control": ["Wiegand", "OSDP", "RS485 2-Wire", "Dry Contact", "RS232", "Ethernet (RJ45)"],
+  "Fire":           ["NAC Circuit", "SLC", "Dry Contact", "IDC", "Class A (Style D/E)", "Class B (Style B/C)"],
+  "Other":          [],  // shows all connectors combined
+};
+
+// All unique connectors across every signal type (for "Other" fallback)
+const ALL_CONNECTORS = [...new Set(Object.values(CONNECTOR_MAP).flat())].sort();
 
 const EMPTY_FORM = {
   make: "", model: "", category: "other", notes: "", ports: [],
@@ -33,10 +44,17 @@ function newPort(direction) {
   return {
     id: crypto.randomUUID(),
     label: "",
-    direction,
+    direction,      // "input" | "output" | "io"
     signal_type: "Video",
     connector_type: "",
+    _custom: false, // UI-only: true when user typed a custom connector
   };
+}
+
+function withCustomFlag(port) {
+  const list = CONNECTOR_MAP[port.signal_type] ?? ALL_CONNECTORS;
+  const isCustom = !!port.connector_type && !list.includes(port.connector_type);
+  return { ...port, _custom: isCustom };
 }
 
 export default function DeviceLibraryPage() {
@@ -100,7 +118,7 @@ export default function DeviceLibraryPage() {
       model: device.model,
       category: device.category,
       notes: device.notes || "",
-      ports: device.ports.map((p) => ({ ...p })),
+      ports: device.ports.map(withCustomFlag),
     });
     setError("");
     setModalOpen(true);
@@ -139,11 +157,13 @@ export default function DeviceLibraryPage() {
     }
     setSaving(true);
     setError("");
+    // Strip UI-only _custom flag before sending to API
+    const payload = { ...form, ports: form.ports.map(({ _custom, ...p }) => p) };
     try {
       if (editing) {
-        await devicesApi.update(editing.id, form);
+        await devicesApi.update(editing.id, payload);
       } else {
-        await devicesApi.create(form);
+        await devicesApi.create(payload);
       }
       closeModal();
       load();
@@ -204,8 +224,13 @@ export default function DeviceLibraryPage() {
   function portSummary(ports) {
     const ins  = ports.filter((p) => p.direction === "input").length;
     const outs = ports.filter((p) => p.direction === "output").length;
-    if (!ins && !outs) return <span style={{ color: "#9CA3AF" }}>—</span>;
-    return `${ins} in / ${outs} out`;
+    const ios  = ports.filter((p) => p.direction === "io").length;
+    if (!ins && !outs && !ios) return <span style={{ color: "#9CA3AF" }}>—</span>;
+    const parts = [];
+    if (ins)  parts.push(`${ins} in`);
+    if (outs) parts.push(`${outs} out`);
+    if (ios)  parts.push(`${ios} I/O`);
+    return parts.join(" / ");
   }
 
   // ── Badge ──────────────────────────────────────────────────────────────────────
@@ -229,6 +254,7 @@ export default function DeviceLibraryPage() {
 
   const inputPorts  = form.ports.filter((p) => p.direction === "input");
   const outputPorts = form.ports.filter((p) => p.direction === "output");
+  const ioPorts     = form.ports.filter((p) => p.direction === "io");
 
   const isReadOnlyModal = editing && editing.is_global && !isSuperadmin;
 
@@ -430,6 +456,15 @@ export default function DeviceLibraryPage() {
                   onUpdate={updatePort}
                   onRemove={removePort}
                 />
+                <PortList
+                  title="I/O Ports (Bidirectional)"
+                  ports={ioPorts}
+                  direction="io"
+                  readOnly={isReadOnlyModal}
+                  onAdd={() => addPort("io")}
+                  onUpdate={updatePort}
+                  onRemove={removePort}
+                />
               </div>
 
               {error && <p style={styles.errorMsg}>{error}</p>}
@@ -453,8 +488,10 @@ export default function DeviceLibraryPage() {
 // ── PortList sub-component ────────────────────────────────────────────────────
 
 function PortList({ title, ports, direction, readOnly, onAdd, onUpdate, onRemove }) {
+  const dirLabel = direction === "io" ? "I/O" : direction;
+
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div style={{ marginBottom: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{title}</span>
         {!readOnly && (
@@ -464,41 +501,93 @@ function PortList({ title, ports, direction, readOnly, onAdd, onUpdate, onRemove
 
       {ports.length === 0 && (
         <p style={{ fontSize: 12, color: "#9CA3AF", margin: "4px 0 0" }}>
-          {readOnly ? "None defined." : `No ${direction} ports yet.`}
+          {readOnly ? "None defined." : `No ${dirLabel} ports yet.`}
         </p>
       )}
 
-      {ports.map((port) => (
-        <div key={port.id} style={portStyles.portRow}>
-          <input
-            style={portStyles.labelInput}
-            placeholder="Label (e.g. HDMI In 1)"
-            value={port.label}
-            onChange={(e) => onUpdate(port.id, "label", e.target.value)}
-            disabled={readOnly}
-          />
-          <select
-            style={portStyles.select}
-            value={port.signal_type}
-            onChange={(e) => onUpdate(port.id, "signal_type", e.target.value)}
-            disabled={readOnly}
-          >
-            {SIGNAL_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <select
-            style={portStyles.select}
-            value={port.connector_type || ""}
-            onChange={(e) => onUpdate(port.id, "connector_type", e.target.value)}
-            disabled={readOnly}
-          >
-            <option value="">Connector (optional)</option>
-            {CONNECTOR_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-          {!readOnly && (
-            <button style={portStyles.removeBtn} onClick={() => onRemove(port.id)}>✕</button>
-          )}
-        </div>
-      ))}
+      {ports.map((port) => {
+        const filteredConnectors = port.signal_type === "Other"
+          ? ALL_CONNECTORS
+          : (CONNECTOR_MAP[port.signal_type] ?? []);
+
+        return (
+          <div key={port.id} style={portStyles.portRow}>
+            {/* Port label */}
+            <input
+              style={portStyles.labelInput}
+              placeholder="Label (e.g. HDMI In 1)"
+              value={port.label}
+              onChange={(e) => onUpdate(port.id, "label", e.target.value)}
+              disabled={readOnly}
+            />
+
+            {/* Signal type */}
+            <select
+              style={portStyles.select}
+              value={port.signal_type}
+              onChange={(e) => {
+                // When signal type changes, reset connector unless it's in new list
+                const newList = CONNECTOR_MAP[e.target.value] ?? ALL_CONNECTORS;
+                const keepConn = newList.includes(port.connector_type);
+                onUpdate(port.id, "signal_type", e.target.value);
+                if (!keepConn) {
+                  onUpdate(port.id, "connector_type", "");
+                  onUpdate(port.id, "_custom", false);
+                }
+              }}
+              disabled={readOnly}
+            >
+              {SIGNAL_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+
+            {/* Connector — dropdown or custom text input */}
+            {port._custom ? (
+              <div style={{ display: "flex", gap: 4, flex: 1, minWidth: 120 }}>
+                <input
+                  style={{ ...portStyles.labelInput, flex: 1 }}
+                  placeholder="Custom connector..."
+                  value={port.connector_type}
+                  onChange={(e) => onUpdate(port.id, "connector_type", e.target.value)}
+                  disabled={readOnly}
+                  autoFocus
+                />
+                {!readOnly && (
+                  <button
+                    style={portStyles.backToListBtn}
+                    title="Back to predefined list"
+                    onClick={() => {
+                      onUpdate(port.id, "connector_type", "");
+                      onUpdate(port.id, "_custom", false);
+                    }}
+                  >←</button>
+                )}
+              </div>
+            ) : (
+              <select
+                style={portStyles.select}
+                value={port.connector_type || ""}
+                onChange={(e) => {
+                  if (e.target.value === "__custom__") {
+                    onUpdate(port.id, "connector_type", "");
+                    onUpdate(port.id, "_custom", true);
+                  } else {
+                    onUpdate(port.id, "connector_type", e.target.value);
+                  }
+                }}
+                disabled={readOnly}
+              >
+                <option value="">Connector (optional)</option>
+                {filteredConnectors.map((c) => <option key={c} value={c}>{c}</option>)}
+                {!readOnly && <option value="__custom__">— Enter custom —</option>}
+              </select>
+            )}
+
+            {!readOnly && (
+              <button style={portStyles.removeBtn} onClick={() => onRemove(port.id)}>✕</button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -651,5 +740,9 @@ const portStyles = {
   removeBtn: {
     padding: "4px 8px", border: "none", background: "none",
     color: "#9CA3AF", cursor: "pointer", fontSize: 14, flexShrink: 0,
+  },
+  backToListBtn: {
+    padding: "4px 8px", border: "1px solid #D1D5DB", borderRadius: 4,
+    background: "#F9FAFB", color: "#6B7280", cursor: "pointer", fontSize: 13, flexShrink: 0,
   },
 };

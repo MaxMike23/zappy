@@ -20,11 +20,7 @@ VALID_SIGNAL_TYPES = {
     "Data", "Security", "Access Control", "Fire", "Other",
 }
 
-VALID_CONNECTOR_TYPES = {
-    "HDMI", "SDI", "DisplayPort", "RS232", "RS485", "XLR", "TRS", "TS",
-    "RCA", "Dante", "AES67", "Cat6", "Fiber", "Relay", "IR", "USB",
-    "Wiegand", "OSDP", "RS485 2-Wire", "Dry Contact", "NAC Circuit", "SLC", "Other",
-}
+VALID_DIRECTIONS = {"input", "output", "io"}
 
 
 def _validate_ports(ports):
@@ -38,13 +34,14 @@ def _validate_ports(ports):
             return f"port[{i}] missing id"
         if not p.get("label", "").strip():
             return f"port[{i}] missing label"
-        if p.get("direction") not in ("input", "output"):
-            return f"port[{i}] direction must be 'input' or 'output'"
+        if p.get("direction") not in VALID_DIRECTIONS:
+            return f"port[{i}] direction must be 'input', 'output', or 'io'"
         if p.get("signal_type") not in VALID_SIGNAL_TYPES:
             return f"port[{i}] invalid signal_type"
+        # connector_type is a free-text field — predefined list is UI-only
         ct = p.get("connector_type")
-        if ct and ct not in VALID_CONNECTOR_TYPES:
-            return f"port[{i}] invalid connector_type"
+        if ct is not None and not isinstance(ct, str):
+            return f"port[{i}] connector_type must be a string"
     return None
 
 
