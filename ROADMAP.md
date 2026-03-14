@@ -207,6 +207,11 @@
 - Company logo upload (PNG/JPG, displayed in diagram title blocks and on exported documents)
 - System Design section with toggles for which sections appear in exports (Dante fields, stream URLs, VLAN table, credential visibility)
 
+**Sidebar update (desktop only):**
+- If a company logo is uploaded, display it at the top of the sidebar on desktop (≥769px) above the nav links — replaces or sits above the company name text
+- Hidden on mobile (logo would consume too much vertical space in bottom nav / collapsed sidebar)
+- Falls back gracefully to company name text if no logo is set
+
 ---
 
 ## Phase 4 — CRM & Client Management
