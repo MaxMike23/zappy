@@ -86,7 +86,7 @@
 
 ---
 
-### 3A — Device Library (Global Catalog)
+### 3A — Device Library (Global Catalog) ✅ COMPLETE
 
 **Ownership model:**
 - `company_id = NULL` on `DeviceTemplate` = global shared record, visible to all tenants (same pattern as superadmin)
@@ -97,11 +97,13 @@
 
 **Backend:**
 - `DeviceTemplate` model — fields: `company_id` (nullable UUID FK — NULL = global), `make`, `model`, `category` (display, processor, matrix switcher, amplifier, camera, DSP, control processor, network switch, other), `notes`, `is_pending` (bool, default False — True while awaiting global approval)
+- **Capability flags:** `has_ip` (bool) — device has a network IP; `has_web_gui` (bool, only valid when `has_ip`) — device has a browser UI; `is_matrix` (bool) — device is a matrix switcher with port counts stored in `matrix_ports`
 - `ports` JSONB array on `DeviceTemplate` — each port object: `{ id, label, direction, signal_type, connector_type }` where:
-  - `direction`: `input` | `output`
-  - `signal_type`: `Video` | `Audio` | `Control` | `Network` | `Power` | `Data` | `Security` | `Access Control` | `Fire` | `Other`
-  - `connector_type`: HDMI, SDI, DisplayPort, RS232, RS485, XLR, TRS, TS, RCA, Dante, AES67, Cat6, Fiber, Relay, IR, USB, Wiegand, OSDP, RS485 2-Wire, Dry Contact, NAC Circuit, SLC, Other (optional — used to suggest connection type when drawing edges)
+  - `direction`: `input` | `output` | `io`
+  - `signal_type`: `Video` | `Audio` | `Control` | `Network` | `Power` | `Data` | `Security` | `Surveillance` | `Access Control` | `Fire` | `Other`
+  - `connector_type`: signal-type-filtered list (HDMI, Mini HDMI, DisplayPort, Mini DisplayPort, SDI, HD-SDI, DVI-D, VGA, HDBaseT, BNC / Coax, USB-C (DP Alt Mode), XLR, TRS, TS, RCA, MIDI, SpeakOn, Speaker Terminal, Phoenix, Dante / AES67, TOSLINK / Optical, AES/EBU, RS232, RS485, RS422, IR, Relay, 3-Pin Phoenix, Ethernet (RJ45), PoE (RJ45), SFP/SFP+, Fiber, IEC C5/C7/C13/C15/C19, NEMA 5-15/5-20, DC Barrel, Terminal Block, Wiegand, OSDP, Dry Contact, NAC Circuit, SLC, IDC, and more; free-text custom entry allowed)
   - `label`: free text (e.g. "HDMI Out 1", "RS232 Port", "Dante In 1–8")
+- `matrix_ports` JSONB array — port count groups when `is_matrix = True`: `{ signal_type, connector_type, input_count, output_count, io_count }`
 - Query logic: device library list returns `company_id = NULL AND is_pending = False` (global) UNION `company_id = <current>` (private) — tenants never see other companies' private templates or unapproved submissions
 - CRUD API:
   - `GET /api/devices/library` — returns global + company-private templates
@@ -115,8 +117,13 @@
 - Device Library page (`/device-library`) — searchable/filterable table by make, model, category
 - Global templates shown with a "Global" badge; company-private shown with a "Private" badge; pending submissions shown with a "Pending" badge (visible only to the submitting company and superadmin)
 - Add / Edit modal:
-  - Top section: make, model, category
-  - Ports section: dynamic list — "Add Input Port" / "Add Output Port" buttons; each row has label, signal type dropdown, connector type dropdown (optional); rows can be reordered and deleted
+  - Top section: make, model, category, notes
+  - **Device Capabilities section:** "Has IP Address?" checkbox (flags IP + MAC as required in 3B); "Has Web GUI?" checkbox (only shown when has_ip, flags username + password as required); "Is Matrix / Switch?" checkbox (enables Matrix Port Counts section)
+  - Ports section: Input Ports, Output Ports, I/O Ports — each row has label, signal type dropdown, connector type dropdown (signal-filtered, with free-text custom entry fallback)
+  - Matrix Port Counts section (visible when Is Matrix checked): rows with signal type, connector, and input / output / I/O count fields
+- **Duplicate button** per row — opens Add modal pre-filled with all fields from the source device; saves as a new private device
+- **Export button** — downloads all company-private devices as `devices_export.json`
+- **Import button** — opens modal to upload a JSON file (same format as export); previews device count before import; bulk-creates via API with per-row error reporting
 - "Submit to Global Library" button on company-private templates — sends for superadmin review
 - Admin/manager write access for private templates; all roles read-only for global templates
 - Superadmin sees a "Pending Submissions" section at the top with approve/reject actions
