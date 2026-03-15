@@ -312,6 +312,14 @@
 - Subscription plan management and billing hooks
 - Bulk operations: deactivate company, export data, purge tenant
 - Platform-wide audit log viewer
+- **Mobile / tablet view:** superadmin dashboard and company list are fully responsive — optimized for quick checks on phone or tablet (status at a glance, ticket triage, company lookup); same responsive breakpoints used throughout Zappy (≤768px single-column, touch-friendly)
+- **Support & feedback ticketing system:**
+  - Any authenticated user can open a ticket from a persistent "Help / Feedback" entry in the nav (bug report, feature request, or general question); ticket includes category, subject, description, and optional file attachments
+  - Tickets are scoped to the submitting company and user; companies can view and reply to their own tickets
+  - Superadmin sees all tickets across tenants with filters by company, category, status, and date
+  - Ticket lifecycle: `open` → `in_progress` → `resolved` / `closed`; superadmin can set status and add internal notes (not visible to company)
+  - Thread model: each ticket has a reply thread (company ↔ superadmin); new replies trigger an in-app notification to the other party
+  - Ticket list on the superadmin dashboard with unread / unresolved counts per company
 
 ---
 
