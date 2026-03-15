@@ -290,45 +290,6 @@ export default function DeviceLibraryPage() {
     URL.revokeObjectURL(url);
   }
 
-  function downloadTemplate() {
-    const template = [
-      {
-        make: "Example Make",
-        model: "Example Model",
-        category: "display",
-        notes: "Optional notes",
-        has_ip: false,
-        has_web_gui: false,
-        is_matrix: false,
-        ports: [
-          { id: "port-1", label: "HDMI In 1", direction: "input", signal_type: "Video", connector_type: "HDMI" },
-          { id: "port-2", label: "HDMI Out 1", direction: "output", signal_type: "Video", connector_type: "HDMI" },
-        ],
-        matrix_ports: [],
-      },
-      {
-        make: "Example Matrix",
-        model: "8x8 Switcher",
-        category: "matrix_switcher",
-        notes: "",
-        has_ip: true,
-        has_web_gui: true,
-        is_matrix: true,
-        ports: [],
-        matrix_ports: [
-          { signal_type: "Video", connector_type: "HDMI", input_count: 8, output_count: 8, io_count: 0 },
-        ],
-      },
-    ];
-    const blob = new Blob([JSON.stringify(template, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "devices_import_template.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   function handleFileSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -567,12 +528,6 @@ export default function DeviceLibraryPage() {
                 Upload a JSON file to bulk-import devices into your private library. Each device in
                 the array will be created as a private device for your company.
               </p>
-
-              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                <button style={styles.secondaryBtn} onClick={downloadTemplate}>
-                  Download Template
-                </button>
-              </div>
 
               <div style={styles.field}>
                 <label style={styles.label}>Select JSON File</label>
