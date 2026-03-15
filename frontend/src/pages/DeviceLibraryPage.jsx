@@ -16,18 +16,19 @@ const CATEGORIES = [
 
 const SIGNAL_TYPES = [
   "Video", "Audio", "Control", "Network", "Power",
-  "Data", "Security", "Access Control", "Fire", "Other",
+  "Data", "Security", "Surveillance", "Access Control", "Fire", "Other",
 ];
 
 // Connectors are filtered by signal type — users can also type a custom value.
 const CONNECTOR_MAP = {
   "Video":          ["HDMI", "Mini HDMI", "DisplayPort", "Mini DisplayPort", "SDI", "HD-SDI", "DVI-D", "VGA", "HDBaseT", "BNC / Coax", "USB-C (DP Alt Mode)"],
-  "Audio":          ["XLR", "TRS (1/4\")", "TS (1/4\")", "TRS (1/8\")", "TS (1/8\")", "RCA", "MIDI", "SpeakOn", "Speaker Terminal", "Dante / AES67", "TOSLINK / Optical", "AES/EBU", "HDMI (ARC/eARC)", "USB-C"],
-  "Control":        ["RS232", "RS485", "RS422", "IR", "Relay", "USB-A", "USB-B", "USB-C", "3-Pin Phoenix", "Ethernet (RJ45)"],
+  "Audio":          ["XLR", "TRS (1/4\")", "TS (1/4\")", "TRS (1/8\")", "TS (1/8\")", "RCA", "MIDI", "SpeakOn", "Speaker Terminal", "Phoenix", "Dante / AES67", "TOSLINK / Optical", "AES/EBU", "HDMI (ARC/eARC)", "USB-C"],
+  "Control":        ["RS232", "RS485", "RS422", "IR", "Relay", "USB-A", "USB-B", "USB-C", "Phoenix", "3-Pin Phoenix", "Ethernet (RJ45)"],
   "Network":        ["Ethernet (RJ45)", "PoE (RJ45)", "SFP", "SFP+", "Fiber (LC)", "Fiber (SC)", "Wi-Fi"],
   "Power":          ["IEC C5", "IEC C7 (Non-Polar)", "IEC C7 (Polar)", "IEC C13", "IEC C15", "IEC C19", "NEMA 5-15", "NEMA 5-20", "DC Barrel", "Terminal Block"],
   "Data":           ["USB-A", "USB-B", "USB-C", "USB Micro-B", "Thunderbolt", "Ethernet (RJ45)", "SD Card"],
   "Security":       ["BNC / Coax", "Ethernet (RJ45)", "PoE (RJ45)", "Dry Contact", "Relay", "RS485"],
+  "Surveillance":   ["PoE (RJ45)", "BNC / Coax", "Terminal Block"],
   "Access Control": ["Wiegand", "OSDP", "RS485 2-Wire", "Dry Contact", "RS232", "Ethernet (RJ45)", "PoE (RJ45)"],
   "Fire":           ["NAC Circuit", "SLC", "Dry Contact", "IDC", "Class A (Style D/E)", "Class B (Style B/C)"],
   "Other":          [],  // shows all connectors combined
@@ -78,6 +79,12 @@ export default function DeviceLibraryPage() {
   const [form, setForm]         = useState(EMPTY_FORM);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState("");
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importParsed, setImportParsed] = useState(null); // parsed devices array
+  const [importParseError, setImportParseError] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importResults, setImportResults] = useState(null); // { ok, errors }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -109,6 +116,23 @@ export default function DeviceLibraryPage() {
   });
 
   // ── Modal helpers ────────────────────────────────────────────────────────────
+
+  function openDuplicate(device) {
+    setEditing(null);
+    setForm({
+      make: device.make,
+      model: device.model,
+      category: device.category,
+      notes: device.notes || "",
+      has_ip: device.has_ip || false,
+      has_web_gui: device.has_web_gui || false,
+      is_matrix: device.is_matrix || false,
+      ports: device.ports.map(withCustomFlag),
+      matrix_ports: (device.matrix_ports || []).map((g) => ({ ...g, id: crypto.randomUUID() })),
+    });
+    setError("");
+    setModalOpen(true);
+  }
 
   function openAdd() {
     setEditing(null);
@@ -250,6 +274,120 @@ export default function DeviceLibraryPage() {
     }
   }
 
+  // ── Export ────────────────────────────────────────────────────────────────────
+
+  function handleExport() {
+    const privateDevices = devices.filter((d) => !d.is_global);
+    const exportData = privateDevices.map(({ make, model, category, notes, has_ip, has_web_gui, is_matrix, ports, matrix_ports }) => ({
+      make, model, category, notes: notes || "", has_ip, has_web_gui, is_matrix, ports, matrix_ports,
+    }));
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "devices_export.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadTemplate() {
+    const template = [
+      {
+        make: "Example Make",
+        model: "Example Model",
+        category: "display",
+        notes: "Optional notes",
+        has_ip: false,
+        has_web_gui: false,
+        is_matrix: false,
+        ports: [
+          { id: "port-1", label: "HDMI In 1", direction: "input", signal_type: "Video", connector_type: "HDMI" },
+          { id: "port-2", label: "HDMI Out 1", direction: "output", signal_type: "Video", connector_type: "HDMI" },
+        ],
+        matrix_ports: [],
+      },
+      {
+        make: "Example Matrix",
+        model: "8x8 Switcher",
+        category: "matrix_switcher",
+        notes: "",
+        has_ip: true,
+        has_web_gui: true,
+        is_matrix: true,
+        ports: [],
+        matrix_ports: [
+          { signal_type: "Video", connector_type: "HDMI", input_count: 8, output_count: 8, io_count: 0 },
+        ],
+      },
+    ];
+    const blob = new Blob([JSON.stringify(template, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "devices_import_template.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImportFile(file);
+    setImportResults(null);
+    setImportParseError("");
+    setImportParsed(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (!Array.isArray(parsed)) throw new Error("File must contain a JSON array.");
+        setImportParsed(parsed);
+      } catch (err) {
+        setImportParseError(err.message || "Invalid JSON file.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  async function handleImport() {
+    if (!importParsed?.length) return;
+    setImporting(true);
+    setImportResults(null);
+    let ok = 0;
+    const errors = [];
+    for (let i = 0; i < importParsed.length; i++) {
+      const d = importParsed[i];
+      try {
+        const payload = {
+          make: (d.make || "").trim(),
+          model: (d.model || "").trim(),
+          category: d.category || "other",
+          notes: d.notes || "",
+          has_ip: !!d.has_ip,
+          has_web_gui: !!d.has_web_gui,
+          is_matrix: !!d.is_matrix,
+          ports: (d.ports || []).map(({ id, _custom, ...p }) => p),
+          matrix_ports: (d.matrix_ports || []).map(({ id, ...g }) => g),
+        };
+        await devicesApi.create(payload);
+        ok++;
+      } catch (e) {
+        errors.push(`Row ${i + 1} (${d.make} ${d.model}): ${e.response?.data?.error || e.message}`);
+      }
+    }
+    setImporting(false);
+    setImportResults({ ok, errors });
+    if (ok > 0) load();
+  }
+
+  function closeImport() {
+    setImportOpen(false);
+    setImportFile(null);
+    setImportParsed(null);
+    setImportParseError("");
+    setImportResults(null);
+  }
+
   // ── Port counts ───────────────────────────────────────────────────────────────
 
   function portSummary(ports) {
@@ -299,9 +437,15 @@ export default function DeviceLibraryPage() {
           <h1 style={styles.title}>Device Library</h1>
           <p style={styles.subtitle}>Global and company-private device templates</p>
         </div>
-        {canWrite && (
-          <button style={styles.addBtn} onClick={openAdd}>+ Add Device</button>
-        )}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {canWrite && (
+            <>
+              <button style={styles.secondaryBtn} onClick={() => setImportOpen(true)}>Import</button>
+              <button style={styles.secondaryBtn} onClick={handleExport}>Export</button>
+              <button style={styles.addBtn} onClick={openAdd}>+ Add Device</button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Pending submissions (superadmin only) */}
@@ -389,6 +533,9 @@ export default function DeviceLibraryPage() {
                       <button style={styles.viewBtn} onClick={() => openEdit(d)}>
                         {canEdit(d) ? "Edit" : "View"}
                       </button>
+                      {canWrite && (
+                        <button style={styles.duplicateBtn} onClick={() => openDuplicate(d)}>Duplicate</button>
+                      )}
                       {canEdit(d) && (
                         <button style={styles.deleteBtn} onClick={() => handleDelete(d)}>Delete</button>
                       )}
@@ -406,7 +553,79 @@ export default function DeviceLibraryPage() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Import Modal */}
+      {importOpen && (
+        <div style={styles.overlay} onClick={closeImport}>
+          <div style={{ ...styles.modal, maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>Import Devices</h2>
+              <button style={styles.closeBtn} onClick={closeImport}>✕</button>
+            </div>
+
+            <div style={styles.modalBody}>
+              <p style={{ fontSize: 13, color: "#374151", marginTop: 0 }}>
+                Upload a JSON file to bulk-import devices into your private library. Each device in
+                the array will be created as a private device for your company.
+              </p>
+
+              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                <button style={styles.secondaryBtn} onClick={downloadTemplate}>
+                  Download Template
+                </button>
+              </div>
+
+              <div style={styles.field}>
+                <label style={styles.label}>Select JSON File</label>
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  style={{ fontSize: 13 }}
+                  onChange={handleFileSelect}
+                  disabled={importing}
+                />
+              </div>
+
+              {importParseError && (
+                <p style={{ ...styles.errorMsg, marginTop: 8 }}>{importParseError}</p>
+              )}
+
+              {importParsed && !importParseError && (
+                <p style={{ fontSize: 13, color: "#059669", marginTop: 8 }}>
+                  ✓ {importParsed.length} device{importParsed.length !== 1 ? "s" : ""} found in file.
+                </p>
+              )}
+
+              {importResults && (
+                <div style={{ marginTop: 12 }}>
+                  <p style={{ fontSize: 13, color: "#059669", margin: "0 0 4px" }}>
+                    ✓ {importResults.ok} device{importResults.ok !== 1 ? "s" : ""} imported successfully.
+                  </p>
+                  {importResults.errors.map((err, i) => (
+                    <p key={i} style={{ fontSize: 12, color: "#DC2626", margin: "2px 0" }}>{err}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button style={styles.cancelBtn} onClick={closeImport}>
+                {importResults ? "Close" : "Cancel"}
+              </button>
+              {!importResults && (
+                <button
+                  style={styles.saveBtn}
+                  onClick={handleImport}
+                  disabled={!importParsed || !!importParseError || importing}
+                >
+                  {importing ? "Importing..." : `Import${importParsed ? ` ${importParsed.length}` : ""}`}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Device Modal */}
       {modalOpen && (
         <div style={styles.overlay} onClick={closeModal}>
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -483,7 +702,7 @@ export default function DeviceLibraryPage() {
                       disabled={isReadOnlyModal}
                       style={{ marginRight: 8 }}
                     />
-                    Has IP Address
+                    Has IP Address?
                     <span style={styles.checkboxHint}> — IP &amp; MAC address required during documentation</span>
                   </label>
 
@@ -496,7 +715,7 @@ export default function DeviceLibraryPage() {
                         disabled={isReadOnlyModal}
                         style={{ marginRight: 8 }}
                       />
-                      Has Web GUI
+                      Has Web GUI?
                       <span style={styles.checkboxHint}> — username &amp; password required during documentation</span>
                     </label>
                   )}
@@ -509,7 +728,7 @@ export default function DeviceLibraryPage() {
                       disabled={isReadOnlyModal}
                       style={{ marginRight: 8 }}
                     />
-                    Is Matrix / Switch
+                    Is Matrix / Switch?
                     <span style={styles.checkboxHint}> — define port counts by signal type below</span>
                   </label>
                 </div>
@@ -773,6 +992,10 @@ const styles = {
     background: "#2563EB", color: "#fff", border: "none", borderRadius: 6,
     padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
   },
+  secondaryBtn: {
+    padding: "8px 14px", fontSize: 13, border: "1px solid #D1D5DB",
+    borderRadius: 6, background: "#fff", cursor: "pointer", color: "#374151",
+  },
 
   // Pending section
   pendingSection: {
@@ -819,6 +1042,10 @@ const styles = {
   submitBtn: {
     padding: "4px 10px", fontSize: 12, border: "1px solid #93C5FD",
     borderRadius: 4, background: "#EFF6FF", cursor: "pointer", color: "#1D4ED8",
+  },
+  duplicateBtn: {
+    padding: "4px 10px", fontSize: 12, border: "1px solid #A7F3D0",
+    borderRadius: 4, background: "#ECFDF5", cursor: "pointer", color: "#065F46",
   },
   approveBtn: {
     padding: "4px 10px", fontSize: 12, border: "none",

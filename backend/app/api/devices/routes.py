@@ -17,7 +17,7 @@ from app.utils.decorators import (
 
 VALID_SIGNAL_TYPES = {
     "Video", "Audio", "Control", "Network", "Power",
-    "Data", "Security", "Access Control", "Fire", "Other",
+    "Data", "Security", "Surveillance", "Access Control", "Fire", "Other",
 }
 
 VALID_DIRECTIONS = {"input", "output", "io"}
