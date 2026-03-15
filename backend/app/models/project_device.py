@@ -13,8 +13,13 @@ class ProjectDevice(db.Model):
     existing instances automatically.
 
     Capability flags on the linked template drive which fields are populated:
-      has_ip      → ip_address, mac_address required; dante_ip / stream_urls optional
+      has_ip      → ip_addresses list required; stream_urls optional
       has_web_gui → username, password required (only valid when has_ip)
+
+    ip_addresses JSONB schema (one entry per network interface):
+        [{ "label": str, "ip": str, "mac": str }, ...]
+        e.g. [{"label": "Control", "ip": "192.168.1.10", "mac": "AA:BB:CC:DD:EE:FF"},
+              {"label": "Dante",   "ip": "192.168.2.10", "mac": ""}]
 
     rs232_settings JSONB schema:
         { "port": str, "baud_rate": int, "data_bits": int,
@@ -52,9 +57,7 @@ class ProjectDevice(db.Model):
     rack_position = db.Column(db.String(100), nullable=True)
 
     # Network (populated when template.has_ip)
-    ip_address = db.Column(db.String(50), nullable=True)
-    mac_address = db.Column(db.String(50), nullable=True)
-    dante_ip = db.Column(db.String(50), nullable=True)
+    ip_addresses = db.Column(JSONB, nullable=False, default=list)  # [{ label, ip, mac }]
     stream_urls = db.Column(JSONB, nullable=False, default=list)
 
     # Credentials (populated when template.has_web_gui)
@@ -104,9 +107,7 @@ class ProjectDevice(db.Model):
             "label": self.label,
             "room": self.room,
             "rack_position": self.rack_position,
-            "ip_address": self.ip_address,
-            "mac_address": self.mac_address,
-            "dante_ip": self.dante_ip,
+            "ip_addresses": self.ip_addresses or [],
             "stream_urls": self.stream_urls or [],
             "username": self.username,
             "password": self.password,

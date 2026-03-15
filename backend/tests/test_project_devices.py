@@ -72,13 +72,14 @@ class TestAddProjectDevice:
         p = create_project(client, auth_headers)
         t = create_private_device(client, auth_headers)
         resp = add_to_project(client, auth_headers, p["id"], t["id"],
-                              label="PTZ 1", room="Stage", ip_address="192.168.1.10")
+                              label="PTZ 1", room="Stage",
+                              ip_addresses=[{"label": "Control", "ip": "192.168.1.10", "mac": ""}])
         assert resp.status_code == 201
         d = resp.get_json()["device"]
         assert d["template"]["id"] == t["id"]
         assert d["label"] == "PTZ 1"
         assert d["room"] == "Stage"
-        assert d["ip_address"] == "192.168.1.10"
+        assert d["ip_addresses"][0]["ip"] == "192.168.1.10"
         assert d["port_summary"]["outputs"] == 1
         assert d["port_summary"]["inputs"] == 1
 

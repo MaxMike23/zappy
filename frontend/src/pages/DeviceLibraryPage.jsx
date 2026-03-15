@@ -3,15 +3,28 @@ import { useAuth } from "@/auth/AuthContext";
 import { devicesApi } from "@/api/devices";
 
 const CATEGORIES = [
-  { value: "display",          label: "Display" },
-  { value: "processor",        label: "Processor / Scaler" },
-  { value: "matrix_switcher",  label: "Matrix Switcher" },
-  { value: "amplifier",        label: "Amplifier" },
-  { value: "camera",           label: "Camera" },
-  { value: "dsp",              label: "DSP / Audio Processor" },
-  { value: "control_processor",label: "Control Processor" },
-  { value: "network_switch",   label: "Network Switch" },
-  { value: "other",            label: "Other" },
+  { value: "display",           label: "Display" },
+  { value: "processor",         label: "Processor / Scaler" },
+  { value: "matrix_switcher",   label: "Matrix Switcher" },
+  { value: "amplifier",         label: "Amplifier" },
+  { value: "camera",            label: "Camera" },
+  { value: "dsp",               label: "DSP / Audio Processor" },
+  { value: "control_processor", label: "Control Processor" },
+  { value: "network_switch",    label: "Network Switch" },
+  { value: "extender",          label: "Extender" },
+  { value: "encoder",           label: "Encoder" },
+  { value: "decoder",           label: "Decoder" },
+  { value: "touchpad",          label: "Touchpad / Touch Panel" },
+  { value: "microphone",        label: "Microphone" },
+  { value: "speaker",           label: "Speaker" },
+  { value: "relay",             label: "Relay" },
+  { value: "intrusion_system",  label: "Intrusion System" },
+  { value: "antenna_cellular",  label: "Antenna / Cellular" },
+  { value: "fire_system",       label: "Fire System" },
+  { value: "dry_contact",       label: "Dry Contact" },
+  { value: "wet_contact",       label: "Wet Contact" },
+  { value: "access_point",      label: "Access Point" },
+  { value: "other",             label: "Other" },
 ];
 
 const SIGNAL_TYPES = [
@@ -80,7 +93,6 @@ export default function DeviceLibraryPage() {
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState("");
   const [importOpen, setImportOpen] = useState(false);
-  const [importFile, setImportFile] = useState(null);
   const [importParsed, setImportParsed] = useState(null); // parsed devices array
   const [importParseError, setImportParseError] = useState("");
   const [importing, setImporting] = useState(false);
@@ -293,7 +305,6 @@ export default function DeviceLibraryPage() {
   function handleFileSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
-    setImportFile(file);
     setImportResults(null);
     setImportParseError("");
     setImportParsed(null);
@@ -343,7 +354,6 @@ export default function DeviceLibraryPage() {
 
   function closeImport() {
     setImportOpen(false);
-    setImportFile(null);
     setImportParsed(null);
     setImportParseError("");
     setImportResults(null);

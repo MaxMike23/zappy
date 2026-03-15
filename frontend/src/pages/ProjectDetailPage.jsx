@@ -28,7 +28,7 @@ const RS232_STOP_BITS   = [1, 1.5, 2];
 
 const EMPTY_DEVICE_FORM = {
   label: "", room: "", rack_position: "",
-  ip_address: "", mac_address: "", dante_ip: "", stream_urls: [],
+  ip_addresses: [], stream_urls: [],
   username: "", password: "",
   firmware_version: "",
   rs232_settings: { port: "", baud_rate: 9600, data_bits: 8, parity: "None", stop_bits: 1 },
@@ -55,9 +55,7 @@ function deviceFormFromInstance(device) {
     label: device.label || "",
     room: device.room || "",
     rack_position: device.rack_position || "",
-    ip_address: device.ip_address || "",
-    mac_address: device.mac_address || "",
-    dante_ip: device.dante_ip || "",
+    ip_addresses: device.ip_addresses || [],
     stream_urls: device.stream_urls || [],
     username: device.username || "",
     password: device.password || "",
@@ -304,9 +302,7 @@ export default function ProjectDetailPage() {
       label: deviceForm.label || null,
       room: deviceForm.room || null,
       rack_position: deviceForm.rack_position || null,
-      ip_address: deviceForm.ip_address || null,
-      mac_address: deviceForm.mac_address || null,
-      dante_ip: deviceForm.dante_ip || null,
+      ip_addresses: deviceForm.ip_addresses,
       stream_urls: deviceForm.stream_urls,
       username: deviceForm.username || null,
       password: deviceForm.password || null,
@@ -337,6 +333,17 @@ export default function ProjectDetailPage() {
       setProjectDevices((prev) => prev.filter((d) => d.id !== deviceId));
     } catch {/* no-op */}
   };
+
+  const addIpEntry = () => setDeviceForm((f) => ({
+    ...f, ip_addresses: [...f.ip_addresses, { label: "", ip: "", mac: "" }],
+  }));
+  const removeIpEntry = (idx) => setDeviceForm((f) => ({
+    ...f, ip_addresses: f.ip_addresses.filter((_, i) => i !== idx),
+  }));
+  const setIpEntry = (idx, field, val) => setDeviceForm((f) => {
+    const updated = f.ip_addresses.map((e, i) => i === idx ? { ...e, [field]: val } : e);
+    return { ...f, ip_addresses: updated };
+  });
 
   const setUrl = (idx, val) => {
     setDeviceForm((f) => {
@@ -651,7 +658,13 @@ export default function ProjectDetailPage() {
                         <td style={styles.td}>{d.room || <span style={styles.muted}>—</span>}</td>
                         <td style={styles.td}>{d.rack_position || <span style={styles.muted}>—</span>}</td>
                         <td style={{ ...styles.td, fontSize: 12, color: "#6B7280" }}>{portStr}</td>
-                        <td style={styles.td}>{d.ip_address || <span style={styles.muted}>—</span>}</td>
+                        <td style={styles.td}>
+                          {d.ip_addresses?.length
+                            ? d.ip_addresses.length === 1
+                              ? d.ip_addresses[0].ip || <span style={styles.muted}>—</span>
+                              : `${d.ip_addresses[0].ip} +${d.ip_addresses.length - 1}`
+                            : <span style={styles.muted}>—</span>}
+                        </td>
                         <td style={{ ...styles.td, whiteSpace: "nowrap" }}>
                           {canEdit && (
                             <>
@@ -817,25 +830,34 @@ export default function ProjectDetailPage() {
             {/* Network — only if has_ip */}
             {modalTemplate?.has_ip && (
               <ModalSection label="Network">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <FormField label="IP Address">
-                    <input style={styles.input} value={deviceForm.ip_address} onChange={(e) => setDeviceForm({ ...deviceForm, ip_address: e.target.value })} placeholder="192.168.1.100" />
-                  </FormField>
-                  <FormField label="MAC Address">
-                    <input style={styles.input} value={deviceForm.mac_address} onChange={(e) => setDeviceForm({ ...deviceForm, mac_address: e.target.value })} placeholder="AA:BB:CC:DD:EE:FF" />
-                  </FormField>
-                  <FormField label="Dante IP">
-                    <input style={styles.input} value={deviceForm.dante_ip} onChange={(e) => setDeviceForm({ ...deviceForm, dante_ip: e.target.value })} placeholder="192.168.2.100" />
-                  </FormField>
+                <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 10 }}>
+                  Add one entry per network interface (e.g. Control, Dante, AES67).
                 </div>
-                <FormField label="Stream URLs">
-                  {deviceForm.stream_urls.map((url, i) => (
-                    <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                      <input style={{ ...styles.input, flex: 1 }} value={url} onChange={(e) => setUrl(i, e.target.value)} placeholder="rtsp://..." />
-                      <button type="button" style={removeBtn} onClick={() => removeUrl(i)}>✕</button>
-                    </div>
-                  ))}
-                  <button type="button" style={addRowBtn} onClick={addUrl}>+ Add Stream URL</button>
+                {deviceForm.ip_addresses.map((entry, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 8, alignItems: "end", marginBottom: 10 }}>
+                    <FormField label={i === 0 ? "Label" : ""}>
+                      <input style={styles.input} value={entry.label} onChange={(e) => setIpEntry(i, "label", e.target.value)} placeholder="e.g. Control, Dante" />
+                    </FormField>
+                    <FormField label={i === 0 ? "IP Address" : ""}>
+                      <input style={styles.input} value={entry.ip} onChange={(e) => setIpEntry(i, "ip", e.target.value)} placeholder="192.168.1.100" />
+                    </FormField>
+                    <FormField label={i === 0 ? "MAC Address" : ""}>
+                      <input style={styles.input} value={entry.mac} onChange={(e) => setIpEntry(i, "mac", e.target.value)} placeholder="AA:BB:CC:DD:EE:FF" />
+                    </FormField>
+                    <button type="button" style={{ ...removeBtn, marginBottom: 2 }} onClick={() => removeIpEntry(i)}>✕</button>
+                  </div>
+                ))}
+                <button type="button" style={addRowBtn} onClick={addIpEntry}>+ Add IP Address</button>
+                <FormField label="Stream URLs" >
+                  <div style={{ marginTop: 6 }}>
+                    {deviceForm.stream_urls.map((url, i) => (
+                      <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                        <input style={{ ...styles.input, flex: 1 }} value={url} onChange={(e) => setUrl(i, e.target.value)} placeholder="rtsp://..." />
+                        <button type="button" style={removeBtn} onClick={() => removeUrl(i)}>✕</button>
+                      </div>
+                    ))}
+                    <button type="button" style={addRowBtn} onClick={addUrl}>+ Add Stream URL</button>
+                  </div>
                 </FormField>
               </ModalSection>
             )}

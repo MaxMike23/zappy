@@ -13,11 +13,28 @@ class DeviceCategory:
     DSP = "dsp"
     CONTROL_PROCESSOR = "control_processor"
     NETWORK_SWITCH = "network_switch"
+    EXTENDER = "extender"
+    ENCODER = "encoder"
+    DECODER = "decoder"
+    TOUCHPAD = "touchpad"
+    MICROPHONE = "microphone"
+    SPEAKER = "speaker"
+    RELAY = "relay"
+    INTRUSION_SYSTEM = "intrusion_system"
+    ANTENNA_CELLULAR = "antenna_cellular"
+    FIRE_SYSTEM = "fire_system"
+    DRY_CONTACT = "dry_contact"
+    WET_CONTACT = "wet_contact"
+    ACCESS_POINT = "access_point"
     OTHER = "other"
 
     ALL = [
         DISPLAY, PROCESSOR, MATRIX_SWITCHER, AMPLIFIER, CAMERA,
-        DSP, CONTROL_PROCESSOR, NETWORK_SWITCH, OTHER,
+        DSP, CONTROL_PROCESSOR, NETWORK_SWITCH,
+        EXTENDER, ENCODER, DECODER, TOUCHPAD, MICROPHONE, SPEAKER,
+        RELAY, INTRUSION_SYSTEM, ANTENNA_CELLULAR, FIRE_SYSTEM,
+        DRY_CONTACT, WET_CONTACT, ACCESS_POINT,
+        OTHER,
     ]
 
     LABELS = {
@@ -29,6 +46,19 @@ class DeviceCategory:
         DSP: "DSP / Audio Processor",
         CONTROL_PROCESSOR: "Control Processor",
         NETWORK_SWITCH: "Network Switch",
+        EXTENDER: "Extender",
+        ENCODER: "Encoder",
+        DECODER: "Decoder",
+        TOUCHPAD: "Touchpad / Touch Panel",
+        MICROPHONE: "Microphone",
+        SPEAKER: "Speaker",
+        RELAY: "Relay",
+        INTRUSION_SYSTEM: "Intrusion System",
+        ANTENNA_CELLULAR: "Antenna / Cellular",
+        FIRE_SYSTEM: "Fire System",
+        DRY_CONTACT: "Dry Contact",
+        WET_CONTACT: "Wet Contact",
+        ACCESS_POINT: "Access Point",
         OTHER: "Other",
     }
 

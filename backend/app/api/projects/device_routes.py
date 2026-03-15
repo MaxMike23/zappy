@@ -71,9 +71,7 @@ def add_project_device(project_id):
         label=data.get("label") or None,
         room=data.get("room") or None,
         rack_position=data.get("rack_position") or None,
-        ip_address=data.get("ip_address") or None,
-        mac_address=data.get("mac_address") or None,
-        dante_ip=data.get("dante_ip") or None,
+        ip_addresses=data.get("ip_addresses") or [],
         stream_urls=data.get("stream_urls") or [],
         username=data.get("username") or None,
         password=data.get("password") or None,
@@ -101,12 +99,11 @@ def update_project_device(project_id, device_id):
         return jsonify({"error": "Device not found."}), 404
 
     data = request.get_json() or {}
-    for field in (
-        "label", "room", "rack_position", "ip_address", "mac_address",
-        "dante_ip", "username", "password", "firmware_version", "notes",
-    ):
+    for field in ("label", "room", "rack_position", "username", "password", "firmware_version", "notes"):
         if field in data:
             setattr(device, field, data[field] or None)
+    if "ip_addresses" in data:
+        device.ip_addresses = data["ip_addresses"] or []
     if "stream_urls" in data:
         device.stream_urls = data["stream_urls"] or []
     if "rs232_settings" in data:
