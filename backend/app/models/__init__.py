@@ -12,6 +12,7 @@ from app.models.audit import AuditLog
 from app.models.visit import Visit, visit_assignments, VisitStatus
 from app.models.attendance import Attendance
 from app.models.device import DeviceTemplate, DeviceCategory
+from app.models.project_device import ProjectDevice
 
 __all__ = [
     "Company",
@@ -33,4 +34,5 @@ __all__ = [
     "Attendance",
     "DeviceTemplate",
     "DeviceCategory",
+    "ProjectDevice",
 ]
