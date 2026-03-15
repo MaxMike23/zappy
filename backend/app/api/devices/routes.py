@@ -55,6 +55,35 @@ def _clean_port(p):
     }
 
 
+def _validate_matrix_ports(matrix_ports):
+    """Returns an error string or None if matrix_ports are valid."""
+    if not isinstance(matrix_ports, list):
+        return "matrix_ports must be an array"
+    for i, g in enumerate(matrix_ports):
+        if not isinstance(g, dict):
+            return f"matrix_ports[{i}] must be an object"
+        if g.get("signal_type") not in VALID_SIGNAL_TYPES:
+            return f"matrix_ports[{i}] invalid signal_type"
+        ct = g.get("connector_type")
+        if ct is not None and not isinstance(ct, str):
+            return f"matrix_ports[{i}] connector_type must be a string"
+        for field in ("input_count", "output_count", "io_count"):
+            val = g.get(field, 0)
+            if not isinstance(val, int) or val < 0:
+                return f"matrix_ports[{i}] {field} must be a non-negative integer"
+    return None
+
+
+def _clean_matrix_group(g):
+    return {
+        "signal_type": g["signal_type"],
+        "connector_type": g.get("connector_type") or None,
+        "input_count": int(g.get("input_count", 0)),
+        "output_count": int(g.get("output_count", 0)),
+        "io_count": int(g.get("io_count", 0)),
+    }
+
+
 # ── List ─────────────────────────────────────────────────────────────────────
 
 @devices_bp.get("")
@@ -123,26 +152,36 @@ def create_device():
     if err:
         return jsonify({"error": err}), 400
 
+    has_ip = bool(data.get("has_ip", False))
+    has_web_gui = bool(data.get("has_web_gui", False)) and has_ip
+    is_matrix = bool(data.get("is_matrix", False))
+
+    matrix_ports = data.get("matrix_ports", [])
+    if is_matrix:
+        err = _validate_matrix_ports(matrix_ports)
+        if err:
+            return jsonify({"error": err}), 400
+
     # Superadmins create global templates directly (no pending step)
     if is_superadmin():
         device = DeviceTemplate(
             company_id=None,
-            make=make,
-            model=model,
-            category=category,
+            make=make, model=model, category=category,
             notes=data.get("notes"),
             is_pending=False,
+            has_ip=has_ip, has_web_gui=has_web_gui, is_matrix=is_matrix,
             ports=[_clean_port(p) for p in ports],
+            matrix_ports=[_clean_matrix_group(g) for g in matrix_ports] if is_matrix else [],
         )
     else:
         device = DeviceTemplate(
             company_id=company_id,
-            make=make,
-            model=model,
-            category=category,
+            make=make, model=model, category=category,
             notes=data.get("notes"),
             is_pending=False,
+            has_ip=has_ip, has_web_gui=has_web_gui, is_matrix=is_matrix,
             ports=[_clean_port(p) for p in ports],
+            matrix_ports=[_clean_matrix_group(g) for g in matrix_ports] if is_matrix else [],
         )
 
     db.session.add(device)
@@ -183,11 +222,24 @@ def update_device(device_id):
         device.category = data["category"]
     if "notes" in data:
         device.notes = data["notes"]
+    if "has_ip" in data:
+        device.has_ip = bool(data["has_ip"])
+        if not device.has_ip:
+            device.has_web_gui = False
+    if "has_web_gui" in data:
+        device.has_web_gui = bool(data["has_web_gui"]) and device.has_ip
+    if "is_matrix" in data:
+        device.is_matrix = bool(data["is_matrix"])
     if "ports" in data:
         err = _validate_ports(data["ports"])
         if err:
             return jsonify({"error": err}), 400
         device.ports = [_clean_port(p) for p in data["ports"]]
+    if "matrix_ports" in data:
+        err = _validate_matrix_ports(data["matrix_ports"])
+        if err:
+            return jsonify({"error": err}), 400
+        device.matrix_ports = [_clean_matrix_group(g) for g in data["matrix_ports"]]
 
     log_audit("updated", "device_template", device.id, company_id, current_user_id)
     db.session.commit()

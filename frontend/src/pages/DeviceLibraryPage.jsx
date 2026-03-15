@@ -21,14 +21,14 @@ const SIGNAL_TYPES = [
 
 // Connectors are filtered by signal type — users can also type a custom value.
 const CONNECTOR_MAP = {
-  "Video":          ["HDMI", "DisplayPort", "SDI", "HD-SDI", "DVI-D", "VGA", "HDBaseT", "BNC / Coax", "USB-C (DP Alt Mode)"],
-  "Audio":          ["XLR", "TRS (1/4\")", "TS (1/4\")", "RCA", "Dante / AES67", "TOSLINK / Optical", "AES/EBU", "HDMI (ARC/eARC)", "USB-C"],
+  "Video":          ["HDMI", "Mini HDMI", "DisplayPort", "Mini DisplayPort", "SDI", "HD-SDI", "DVI-D", "VGA", "HDBaseT", "BNC / Coax", "USB-C (DP Alt Mode)"],
+  "Audio":          ["XLR", "TRS (1/4\")", "TS (1/4\")", "TRS (1/8\")", "TS (1/8\")", "RCA", "MIDI", "SpeakOn", "Speaker Terminal", "Dante / AES67", "TOSLINK / Optical", "AES/EBU", "HDMI (ARC/eARC)", "USB-C"],
   "Control":        ["RS232", "RS485", "RS422", "IR", "Relay", "USB-A", "USB-B", "USB-C", "3-Pin Phoenix", "Ethernet (RJ45)"],
   "Network":        ["Ethernet (RJ45)", "PoE (RJ45)", "SFP", "SFP+", "Fiber (LC)", "Fiber (SC)", "Wi-Fi"],
-  "Power":          ["IEC C13", "IEC C19", "NEMA 5-15", "NEMA 5-20", "DC Barrel", "Terminal Block"],
+  "Power":          ["IEC C5", "IEC C7 (Non-Polar)", "IEC C7 (Polar)", "IEC C13", "IEC C15", "IEC C19", "NEMA 5-15", "NEMA 5-20", "DC Barrel", "Terminal Block"],
   "Data":           ["USB-A", "USB-B", "USB-C", "USB Micro-B", "Thunderbolt", "Ethernet (RJ45)", "SD Card"],
   "Security":       ["BNC / Coax", "Ethernet (RJ45)", "PoE (RJ45)", "Dry Contact", "Relay", "RS485"],
-  "Access Control": ["Wiegand", "OSDP", "RS485 2-Wire", "Dry Contact", "RS232", "Ethernet (RJ45)"],
+  "Access Control": ["Wiegand", "OSDP", "RS485 2-Wire", "Dry Contact", "RS232", "Ethernet (RJ45)", "PoE (RJ45)"],
   "Fire":           ["NAC Circuit", "SLC", "Dry Contact", "IDC", "Class A (Style D/E)", "Class B (Style B/C)"],
   "Other":          [],  // shows all connectors combined
 };
@@ -37,8 +37,14 @@ const CONNECTOR_MAP = {
 const ALL_CONNECTORS = [...new Set(Object.values(CONNECTOR_MAP).flat())].sort();
 
 const EMPTY_FORM = {
-  make: "", model: "", category: "other", notes: "", ports: [],
+  make: "", model: "", category: "other", notes: "",
+  has_ip: false, has_web_gui: false, is_matrix: false,
+  ports: [], matrix_ports: [],
 };
+
+function newMatrixGroup() {
+  return { id: crypto.randomUUID(), signal_type: "Video", connector_type: "", input_count: 0, output_count: 0, io_count: 0 };
+}
 
 function newPort(direction) {
   return {
@@ -118,7 +124,11 @@ export default function DeviceLibraryPage() {
       model: device.model,
       category: device.category,
       notes: device.notes || "",
+      has_ip: device.has_ip || false,
+      has_web_gui: device.has_web_gui || false,
+      is_matrix: device.is_matrix || false,
       ports: device.ports.map(withCustomFlag),
+      matrix_ports: (device.matrix_ports || []).map((g) => ({ ...g, id: crypto.randomUUID() })),
     });
     setError("");
     setModalOpen(true);
@@ -148,6 +158,23 @@ export default function DeviceLibraryPage() {
     setForm((f) => ({ ...f, ports: f.ports.filter((p) => p.id !== id) }));
   }
 
+  // ── Matrix port group helpers ─────────────────────────────────────────────
+
+  function addMatrixGroup() {
+    setForm((f) => ({ ...f, matrix_ports: [...f.matrix_ports, newMatrixGroup()] }));
+  }
+
+  function updateMatrixGroup(id, field, value) {
+    setForm((f) => ({
+      ...f,
+      matrix_ports: f.matrix_ports.map((g) => g.id === id ? { ...g, [field]: value } : g),
+    }));
+  }
+
+  function removeMatrixGroup(id) {
+    setForm((f) => ({ ...f, matrix_ports: f.matrix_ports.filter((g) => g.id !== id) }));
+  }
+
   // ── Save ─────────────────────────────────────────────────────────────────────
 
   async function handleSave() {
@@ -157,8 +184,12 @@ export default function DeviceLibraryPage() {
     }
     setSaving(true);
     setError("");
-    // Strip UI-only _custom flag before sending to API
-    const payload = { ...form, ports: form.ports.map(({ _custom, ...p }) => p) };
+    // Strip UI-only flags before sending to API
+    const payload = {
+      ...form,
+      ports: form.ports.map(({ _custom, ...p }) => p),
+      matrix_ports: form.matrix_ports.map(({ id, ...g }) => g),
+    };
     try {
       if (editing) {
         await devicesApi.update(editing.id, payload);
@@ -436,6 +467,54 @@ export default function DeviceLibraryPage() {
                 />
               </div>
 
+              {/* Device Capabilities */}
+              <div style={styles.field}>
+                <label style={styles.label}>Device Capabilities</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <label style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={form.has_ip}
+                      onChange={(e) => setForm((f) => ({
+                        ...f,
+                        has_ip: e.target.checked,
+                        has_web_gui: e.target.checked ? f.has_web_gui : false,
+                      }))}
+                      disabled={isReadOnlyModal}
+                      style={{ marginRight: 8 }}
+                    />
+                    Has IP Address
+                    <span style={styles.checkboxHint}> — IP &amp; MAC address required during documentation</span>
+                  </label>
+
+                  {form.has_ip && (
+                    <label style={{ ...styles.checkboxLabel, marginLeft: 24 }}>
+                      <input
+                        type="checkbox"
+                        checked={form.has_web_gui}
+                        onChange={(e) => setForm((f) => ({ ...f, has_web_gui: e.target.checked }))}
+                        disabled={isReadOnlyModal}
+                        style={{ marginRight: 8 }}
+                      />
+                      Has Web GUI
+                      <span style={styles.checkboxHint}> — username &amp; password required during documentation</span>
+                    </label>
+                  )}
+
+                  <label style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={form.is_matrix}
+                      onChange={(e) => setForm((f) => ({ ...f, is_matrix: e.target.checked }))}
+                      disabled={isReadOnlyModal}
+                      style={{ marginRight: 8 }}
+                    />
+                    Is Matrix / Switch
+                    <span style={styles.checkboxHint}> — define port counts by signal type below</span>
+                  </label>
+                </div>
+              </div>
+
               {/* Ports */}
               <div style={styles.portsSection}>
                 <PortList
@@ -466,6 +545,19 @@ export default function DeviceLibraryPage() {
                   onRemove={removePort}
                 />
               </div>
+
+              {/* Matrix Port Counts */}
+              {form.is_matrix && (
+                <div style={styles.portsSection}>
+                  <MatrixPortList
+                    groups={form.matrix_ports}
+                    readOnly={isReadOnlyModal}
+                    onAdd={addMatrixGroup}
+                    onUpdate={updateMatrixGroup}
+                    onRemove={removeMatrixGroup}
+                  />
+                </div>
+              )}
 
               {error && <p style={styles.errorMsg}>{error}</p>}
             </div>
@@ -592,6 +684,84 @@ function PortList({ title, ports, direction, readOnly, onAdd, onUpdate, onRemove
   );
 }
 
+// ── MatrixPortList sub-component ─────────────────────────────────────────────
+
+function MatrixPortList({ groups, readOnly, onAdd, onUpdate, onRemove }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Matrix Port Counts</span>
+        {!readOnly && (
+          <button style={portStyles.addPortBtn} onClick={onAdd}>+ Add Row</button>
+        )}
+      </div>
+
+      {groups.length > 0 && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+          <span style={{ flex: 2, fontSize: 11, color: "#9CA3AF" }}>Signal Type</span>
+          <span style={{ flex: 2, fontSize: 11, color: "#9CA3AF" }}>Connector</span>
+          <span style={{ width: 56, fontSize: 11, color: "#9CA3AF", textAlign: "center" }}>Inputs</span>
+          <span style={{ width: 56, fontSize: 11, color: "#9CA3AF", textAlign: "center" }}>Outputs</span>
+          <span style={{ width: 56, fontSize: 11, color: "#9CA3AF", textAlign: "center" }}>I/O</span>
+          {!readOnly && <span style={{ width: 28 }} />}
+        </div>
+      )}
+
+      {groups.length === 0 && (
+        <p style={{ fontSize: 12, color: "#9CA3AF", margin: "4px 0 0" }}>
+          {readOnly ? "No port groups defined." : "Add rows to specify port counts by signal type."}
+        </p>
+      )}
+
+      {groups.map((g) => {
+        const filteredConnectors = g.signal_type === "Other" ? ALL_CONNECTORS : (CONNECTOR_MAP[g.signal_type] ?? []);
+        return (
+          <div key={g.id} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+            <select
+              style={{ ...portStyles.select, flex: 2 }}
+              value={g.signal_type}
+              onChange={(e) => {
+                const newList = CONNECTOR_MAP[e.target.value] ?? ALL_CONNECTORS;
+                onUpdate(g.id, "signal_type", e.target.value);
+                if (!newList.includes(g.connector_type)) onUpdate(g.id, "connector_type", "");
+              }}
+              disabled={readOnly}
+            >
+              {SIGNAL_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+
+            <select
+              style={{ ...portStyles.select, flex: 2 }}
+              value={g.connector_type || ""}
+              onChange={(e) => onUpdate(g.id, "connector_type", e.target.value)}
+              disabled={readOnly}
+            >
+              <option value="">Any / Mixed</option>
+              {filteredConnectors.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+
+            {["input_count", "output_count", "io_count"].map((key) => (
+              <input
+                key={key}
+                type="number"
+                min={0}
+                style={portStyles.countInput}
+                value={g[key]}
+                onChange={(e) => onUpdate(g.id, key, Math.max(0, parseInt(e.target.value) || 0))}
+                disabled={readOnly}
+              />
+            ))}
+
+            {!readOnly && (
+              <button style={portStyles.removeBtn} onClick={() => onRemove(g.id)}>✕</button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = {
@@ -710,6 +880,8 @@ const styles = {
     fontSize: 13, color: "#111827", background: "#fff", width: "100%", boxSizing: "border-box",
   },
   portsSection: { marginTop: 8, borderTop: "1px solid #E5E7EB", paddingTop: 14 },
+  checkboxLabel: { display: "flex", alignItems: "center", fontSize: 13, color: "#111827", cursor: "pointer" },
+  checkboxHint: { fontSize: 12, color: "#6B7280" },
   errorMsg: { color: "#DC2626", fontSize: 13, marginTop: 8 },
   cancelBtn: {
     padding: "8px 16px", border: "1px solid #D1D5DB", borderRadius: 6,
@@ -744,5 +916,9 @@ const portStyles = {
   backToListBtn: {
     padding: "4px 8px", border: "1px solid #D1D5DB", borderRadius: 4,
     background: "#F9FAFB", color: "#6B7280", cursor: "pointer", fontSize: 13, flexShrink: 0,
+  },
+  countInput: {
+    width: 56, padding: "6px 6px", border: "1px solid #D1D5DB", borderRadius: 5,
+    fontSize: 12, color: "#111827", textAlign: "center", flexShrink: 0,
   },
 };

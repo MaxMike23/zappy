@@ -41,19 +41,17 @@ class DeviceTemplate(db.Model):
     company_id = <uuid> → company-private, visible only to that company.
     is_pending = True  → submitted for global approval, awaiting superadmin review.
 
-    ports JSONB schema (array of objects):
-        [
-          {
-            "id": str,           # client-generated UUID for stable React keys
-            "label": str,        # e.g. "HDMI Out 1", "RS232 Port"
-            "direction": str,    # "input" | "output"
-            "signal_type": str,  # "Video" | "Audio" | "Control" | "Network" |
-                                 # "Power" | "Data" | "Security" |
-                                 # "Access Control" | "Fire" | "Other"
-            "connector_type": str | null  # "HDMI" | "RS232" | "Dante" | etc.
-          },
-          ...
-        ]
+    has_ip     → device has a network IP (requires IP + MAC during documentation)
+    has_web_gui → device has a browser UI (requires username + password; only when has_ip)
+    is_matrix  → device is a matrix switcher; port counts stored in matrix_ports
+
+    ports JSONB schema (named individual ports):
+        [{ "id": str, "label": str, "direction": "input"|"output"|"io",
+           "signal_type": str, "connector_type": str|null }, ...]
+
+    matrix_ports JSONB schema (port counts by signal group — used when is_matrix=True):
+        [{ "signal_type": str, "connector_type": str|null,
+           "input_count": int, "output_count": int, "io_count": int }, ...]
     """
     __tablename__ = "device_templates"
 
@@ -68,7 +66,11 @@ class DeviceTemplate(db.Model):
     category = db.Column(db.String(100), nullable=False, default=DeviceCategory.OTHER)
     notes = db.Column(db.Text, nullable=True)
     is_pending = db.Column(db.Boolean, nullable=False, default=False)
+    has_ip = db.Column(db.Boolean, nullable=False, default=False)
+    has_web_gui = db.Column(db.Boolean, nullable=False, default=False)
+    is_matrix = db.Column(db.Boolean, nullable=False, default=False)
     ports = db.Column(JSONB, nullable=False, default=list)
+    matrix_ports = db.Column(JSONB, nullable=False, default=list)
 
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -91,7 +93,11 @@ class DeviceTemplate(db.Model):
             "notes": self.notes,
             "is_pending": self.is_pending,
             "is_global": self.company_id is None and not self.is_pending,
+            "has_ip": self.has_ip,
+            "has_web_gui": self.has_web_gui,
+            "is_matrix": self.is_matrix,
             "ports": self.ports or [],
+            "matrix_ports": self.matrix_ports or [],
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
