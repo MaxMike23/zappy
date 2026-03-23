@@ -17,10 +17,8 @@ export default defineConfig({
       interval: 300,
     },
     proxy: {
-      // Use the Docker service name, not localhost — inside the container
-      // localhost resolves to the frontend container itself, not backend.
       "/api": {
-        target: "http://backend:5000",
+        target: "http://localhost:5000",
         changeOrigin: true,
       },
     },
