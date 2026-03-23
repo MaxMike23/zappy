@@ -130,19 +130,29 @@
 
 ---
 
-### 3B — Project Device Instances
+### 3B — Project Device Instances ✅ COMPLETE
 
 **Backend:**
-- `ProjectDevice` model — links `DeviceTemplate` to a `Project`; instance-specific fields: label/nickname, room/location, rack position, IP address (control), Dante IP (nullable), stream URLs (JSONB array, nullable), username, password, firmware version, RS232 settings (port, baud rate, data bits, parity — JSONB), notes
-- Ports are inherited from `DeviceTemplate.ports` at read time — no port duplication on the instance; if a port is added to the template later it appears on all existing instances
+- `ProjectDevice` model — links `DeviceTemplate` to a `Project`; instance-specific fields: label/nickname, room/location, rack position, `ip_addresses` (JSONB array `[{label, ip, mac}]` — supports unlimited interfaces with custom labels e.g. Control, Dante, AES67), stream URLs (JSONB array, nullable), username, password, firmware version, RS232 settings (port, baud rate, data bits, parity, stop bits — JSONB), notes, `node_position` (JSONB stub for Phase 3C canvas coordinates)
+- FK `template_id` uses `SET NULL` on template delete — instances survive template removal
+- Ports are inherited from `DeviceTemplate.ports` at read time — no port duplication on the instance; port additions on the template appear on all existing instances automatically
+- `to_dict()` includes inline template snapshot + computed `port_summary` (input / output / io counts)
 - CRUD API: `GET/POST /api/projects/<id>/devices`, `PUT/DELETE /api/projects/<id>/devices/<device_id>`
+- Template access check: instance can reference any global (`company_id = NULL`) or company-owned template; cross-tenant templates rejected at write time
+- 18/18 tests passing (`backend/tests/test_project_devices.py`): list, add (global + private templates), tenant isolation, role checks, RS232, stream URLs, update, delete
 
 **Frontend:**
-- "System Design" tab on Project Detail page
-- Device list: search/select from library; port summary shown per row (e.g. "3 in / 4 out")
-- Edit modal grouped by section: Identity, Network (control IP, Dante IP, stream URLs), Credentials (username/password), Control (RS232 params if applicable), Location (room, rack position), Notes
-- Read-only port list shown in modal (ports are managed on the template, not the instance)
-- All roles can view; admin/manager can add/edit/delete
+- "System Design" tab on Project Detail page with device count badge; lazy-loads library only on first tab open
+- Device picker modal: searchable by make/model/category; Global / Private badges; filters to approved templates visible to the company
+- Device table: make/model, label, room, rack position, port summary (e.g. "3 in / 4 out"), IP column (first IP shown; "x.x.x.x +N" for multiple)
+- Instance edit modal with conditional sections:
+  - **Identity** (always): Label/Nickname
+  - **Location** (always): Room, Rack Position
+  - **Network** (when `has_ip`): dynamic IP address list — each row has Label, IP, MAC + Add/Remove; Stream URLs list
+  - **Credentials** (when `has_web_gui`): Username, Password
+  - **RS232 Control** (when template has RS232 ports): port, baud rate, data bits, parity, stop bits
+  - **General** (always): Firmware Version, Notes
+- All roles can view; admin/manager/superadmin can add/edit/delete
 
 ---
 

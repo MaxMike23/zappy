@@ -8,6 +8,10 @@ export default defineConfig({
     host: "0.0.0.0",  // bind to all interfaces so LAN devices (phones, tablets) can connect
     // Required on Windows + Docker: container FS events don't propagate
     // without polling, so HMR won't trigger on file saves.
+    allowedHosts: [
+      "zappy-dev.hansentech.tech",
+      "zappy-api.hansentech.tech",
+    ],
     watch: {
       usePolling: true,
       interval: 300,
