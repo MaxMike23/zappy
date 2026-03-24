@@ -20,7 +20,7 @@
  *   onDeviceDeleted(id)        — parent removes device from list
  */
 
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -222,26 +222,29 @@ export default function SignalFlowCanvas({
   [devices, trade, canEdit, onDeviceEdit]);
 
   const buildEdges = useCallback(() =>
-    connections.map((c) => {
-      // Infer edge colour from source port's signal_type
-      const srcDevice = devices.find((d) => d.id === c.source_device_id);
-      const srcPort   = (srcDevice?.template?.ports || []).find((p) => p.id === c.source_port);
-      const color     = signalColor(srcPort?.signal_type);
-      return {
-        id: c.id,
-        source: c.source_device_id || "",
-        sourceHandle: c.source_port || "default_out",
-        target: c.destination_device_id || "",
-        targetHandle: c.destination_port
-          ? `${c.destination_port}_in`.replace(/_in_in$/, "_in")
-          : "default_in",
-        label: c.connection_type || "",
-        style: { stroke: color, strokeWidth: 2 },
-        labelStyle: { fontSize: 11, fill: "#374151" },
-        labelBgStyle: { fill: "#F9FAFB", fillOpacity: 0.85 },
-        data: { connectionId: c.id },
-      };
-    }),
+    connections
+      // Skip orphaned connections (device was deleted)
+      .filter((c) => c.source_device_id && c.destination_device_id)
+      .map((c) => {
+        // Infer edge colour from source port signal_type
+        // source_port / destination_port store the full handle ID (e.g. "portAbc" or "portAbc_in")
+        const rawSrcPortId = (c.source_port || "").replace(/_out$/, "");
+        const srcDevice    = devices.find((d) => d.id === c.source_device_id);
+        const srcPort      = (srcDevice?.template?.ports || []).find((p) => p.id === rawSrcPortId);
+        const color        = signalColor(srcPort?.signal_type);
+        return {
+          id: c.id,
+          source: c.source_device_id,
+          sourceHandle: c.source_port || "default_out",
+          target: c.destination_device_id,
+          targetHandle: c.destination_port || "default_in",
+          label: c.connection_type || "",
+          style: { stroke: color, strokeWidth: 2 },
+          labelStyle: { fontSize: 11, fill: "#374151" },
+          labelBgStyle: { fill: "#F9FAFB", fillOpacity: 0.85 },
+          data: { connectionId: c.id },
+        };
+      }),
   [connections, devices]);
 
   // Sync from props; auto-layout if no positions saved yet
@@ -290,12 +293,9 @@ export default function SignalFlowCanvas({
     if (!connModal) return;
     setConnSaving(true);
     try {
-      // Map react-flow handle IDs back to raw port IDs
+      // Store full handle IDs as-is — buildEdges uses them directly
       const srcPortId = connModal.sourceHandle === "default_out" ? null : connModal.sourceHandle;
-      // targetHandle may have _in suffix appended in buildEdges; strip it for storage
-      const dstPortId = connModal.targetHandle === "default_in"
-        ? null
-        : connModal.targetHandle.replace(/_in$/, "");
+      const dstPortId = connModal.targetHandle === "default_in"  ? null : connModal.targetHandle;
 
       const res = await connectionsApi.create(projectId, {
         trade,
@@ -311,14 +311,15 @@ export default function SignalFlowCanvas({
 
       // Optimistically add edge
       const srcDevice = devices.find((d) => d.id === conn.source_device_id);
-      const srcPort   = (srcDevice?.template?.ports || []).find((p) => p.id === conn.source_port);
+      const rawSrc    = (conn.source_port || "").replace(/_out$/, "");
+      const srcPort   = (srcDevice?.template?.ports || []).find((p) => p.id === rawSrc);
       const color = signalColor(srcPort?.signal_type);
       setEdges((es) => addEdge({
         id: conn.id,
         source: conn.source_device_id,
         sourceHandle: conn.source_port || "default_out",
         target: conn.destination_device_id,
-        targetHandle: conn.destination_port ? `${conn.destination_port}_in` : "default_in",
+        targetHandle: conn.destination_port || "default_in",
         label: conn.connection_type || "",
         style: { stroke: color, strokeWidth: 2 },
         labelStyle: { fontSize: 11, fill: "#374151" },
@@ -358,29 +359,32 @@ export default function SignalFlowCanvas({
   const companyName = diagram?.company_name_override || company?.name || "";
 
   return (
-    <div style={{ display: "flex", gap: 12 }}>
+    <div style={{ display: "flex", gap: 12, height: "100%", minHeight: 0 }}>
       {/* Canvas */}
       <div style={canvasWrap}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onNodeDragStop={onNodeDragStop}
-          onEdgesDelete={onEdgesDelete}
-          onNodesDelete={onNodesDelete}
-          nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.2 }}
-          deleteKeyCode={["Delete", "Backspace"]}
-          nodesDraggable={canEdit}
-          nodesConnectable={canEdit}
-          elementsSelectable={canEdit}
-        >
-          <Background gap={16} color="#E5E7EB" />
-          <Controls />
-        </ReactFlow>
+        {/* ReactFlow needs an explicit-height parent — this wrapper provides it */}
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeDragStop={onNodeDragStop}
+            onEdgesDelete={onEdgesDelete}
+            onNodesDelete={onNodesDelete}
+            nodeTypes={nodeTypes}
+            fitView={nodes.length > 0}
+            fitViewOptions={{ padding: 0.2 }}
+            deleteKeyCode={["Delete", "Backspace"]}
+            nodesDraggable={canEdit}
+            nodesConnectable={canEdit}
+            elementsSelectable={canEdit}
+          >
+            <Background gap={16} color="#E5E7EB" />
+            <Controls />
+          </ReactFlow>
+        </div>
 
         {/* Title block */}
         <div style={titleBlock}>
@@ -455,8 +459,9 @@ function ConnectionSidebar({ connections, devices }) {
   };
   const portLabel = (deviceId, portId) => {
     if (!portId) return null;
+    const rawId = portId.replace(/_in$|_out$/, "");
     const d = devices.find((x) => x.id === deviceId);
-    return (d?.template?.ports || []).find((p) => p.id === portId)?.label || portId;
+    return (d?.template?.ports || []).find((p) => p.id === rawId)?.label || rawId;
   };
 
   if (!connections.length) return (
