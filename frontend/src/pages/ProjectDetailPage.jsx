@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { TRADES, TRADE_LABEL } from "@/constants/trades";
@@ -10,6 +10,9 @@ import { visitsApi } from "@/api/visits";
 import { filesApi } from "@/api/files";
 import { devicesApi } from "@/api/devices";
 import { projectDevicesApi } from "@/api/projectDevices";
+import { connectionsApi } from "@/api/connections";
+import { diagramsApi } from "@/api/diagrams";
+import SignalFlowCanvas from "@/components/SignalFlowCanvas";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
@@ -28,6 +31,7 @@ const RS232_PARITIES    = ["None", "Even", "Odd", "Mark", "Space"];
 const RS232_STOP_BITS   = [1, 1.5, 2];
 
 const EMPTY_DEVICE_FORM = {
+  trade: "",
   label: "", room: "", rack_position: "",
   ip_addresses: [], stream_urls: [],
   username: "", password: "",
@@ -53,6 +57,7 @@ function hasRS232Ports(template) {
 
 function deviceFormFromInstance(device) {
   return {
+    trade: device.trade || "",
     label: device.label || "",
     room: device.room || "",
     rack_position: device.rack_position || "",
@@ -114,6 +119,19 @@ export default function ProjectDetailPage() {
   const [deviceForm, setDeviceForm]           = useState(EMPTY_DEVICE_FORM);
   const [deviceSaving, setDeviceSaving]       = useState(false);
   const [deviceError, setDeviceError]         = useState("");
+  // Phase 3C — signal flow
+  const [connections, setConnections]           = useState([]);
+  const [connectionsLoaded, setConnectionsLoaded] = useState(false);
+  const [activeTrade, setActiveTrade]           = useState(null);
+  const [diagrams, setDiagrams]                 = useState({});  // trade -> diagram metadata
+  const [diagramInfoOpen, setDiagramInfoOpen]   = useState(false);
+  const [diagramInfoForm, setDiagramInfoForm]   = useState({});
+  const [diagramInfoSaving, setDiagramInfoSaving] = useState(false);
+
+  const tradesInUse = useMemo(
+    () => [...new Set(projectDevices.filter((d) => d.trade).map((d) => d.trade))],
+    [projectDevices],
+  );
 
   const { user, company } = useAuth();
   const canEdit = EDIT_ROLES.includes(user?.role);
@@ -150,12 +168,62 @@ export default function ProjectDetailPage() {
   // ── tab switching ─────────────────────────────────────────────────────────────
   const handleTabChange = async (tab) => {
     setActiveTab(tab);
-    if (tab === "system_design" && !libraryLoaded) {
-      try {
-        const res = await devicesApi.list();
-        setLibrary(res.data.devices || res.data.items || []);
-        setLibraryLoaded(true);
-      } catch {/* no-op */}
+    if (tab === "system_design") {
+      if (!libraryLoaded) {
+        try {
+          const res = await devicesApi.list();
+          setLibrary(res.data.devices || res.data.items || []);
+          setLibraryLoaded(true);
+        } catch {/* no-op */}
+      }
+      if (!connectionsLoaded) {
+        try {
+          const res = await connectionsApi.list(id);
+          setConnections(res.data.connections || []);
+          setConnectionsLoaded(true);
+        } catch {/* no-op */}
+      }
+      // Auto-activate first trade that has devices
+      const firstTrade = projectDevices.find((d) => d.trade)?.trade;
+      if (firstTrade && !activeTrade) {
+        setActiveTrade(firstTrade);
+        diagramsApi.get(id, firstTrade)
+          .then((r) => { if (r.data.diagram) setDiagrams((p) => ({ ...p, [firstTrade]: r.data.diagram })); })
+          .catch(() => {});
+      }
+    }
+  };
+
+  const handleTradeTabClick = async (trade) => {
+    setActiveTrade(trade);
+    if (!diagrams[trade]) {
+      diagramsApi.get(id, trade)
+        .then((r) => { if (r.data.diagram) setDiagrams((p) => ({ ...p, [trade]: r.data.diagram })); })
+        .catch(() => {});
+    }
+  };
+
+  const openDiagramInfo = () => {
+    const d = diagrams[activeTrade] || {};
+    setDiagramInfoForm({
+      drawing_title:        d.drawing_title || "",
+      location:             d.location || "",
+      company_name_override: d.company_name_override || "",
+      revision:             d.revision || "",
+      drawn_by:             d.drawn_by || "",
+      drawing_date:         d.drawing_date || new Date().toISOString().split("T")[0],
+    });
+    setDiagramInfoOpen(true);
+  };
+
+  const handleDiagramInfoSave = async () => {
+    setDiagramInfoSaving(true);
+    try {
+      const res = await diagramsApi.upsert(id, activeTrade, diagramInfoForm);
+      setDiagrams((p) => ({ ...p, [activeTrade]: res.data.diagram }));
+      setDiagramInfoOpen(false);
+    } catch {/* no-op */} finally {
+      setDiagramInfoSaving(false);
     }
   };
 
@@ -293,7 +361,7 @@ export default function ProjectDetailPage() {
   const handlePickerSelect = (template) => {
     setPickerOpen(false);
     setModalTemplate(template);
-    setDeviceForm({ ...EMPTY_DEVICE_FORM, stream_urls: [] });
+    setDeviceForm({ ...EMPTY_DEVICE_FORM, trade: activeTrade || "", stream_urls: [] });
     setDeviceError("");
     setDeviceModal({ mode: "add" });
   };
@@ -320,6 +388,7 @@ export default function ProjectDetailPage() {
     setDeviceSaving(true);
     setDeviceError("");
     const payload = {
+      trade: deviceForm.trade || null,
       label: deviceForm.label || null,
       room: deviceForm.room || null,
       rack_position: deviceForm.rack_position || null,
@@ -640,71 +709,128 @@ export default function ProjectDetailPage() {
 
       {/* ── System Design tab ─────────────────────────────────────────────────── */}
       {activeTab === "system_design" && (
-        <div style={styles.section}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <h2 style={styles.sectionTitle}>Devices</h2>
-            {canEdit && (
-              <button style={styles.secondaryBtn} onClick={openPicker}>+ Add Device</button>
+        <>
+          {/* Devices table */}
+          <div style={styles.section}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <h2 style={styles.sectionTitle}>Devices</h2>
+              {canEdit && (
+                <button style={styles.secondaryBtn} onClick={openPicker}>+ Add Device</button>
+              )}
+            </div>
+            {projectDevices.length === 0 ? (
+              <EmptyState
+                message="No devices added yet."
+                action={canEdit ? "+ Add Device" : undefined}
+                onAction={openPicker}
+              />
+            ) : (
+              <div style={styles.tableWrap}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      {["Device", "Trade", "Label / Nickname", "Room", "Rack", "Ports", "IP Address", ""].map((h) => (
+                        <th key={h} style={styles.th}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectDevices.map((d) => {
+                      const { inputs, outputs, io } = d.port_summary || {};
+                      const portStr = [
+                        inputs  && `${inputs} in`,
+                        outputs && `${outputs} out`,
+                        io      && `${io} I/O`,
+                      ].filter(Boolean).join(" / ") || "—";
+                      return (
+                        <tr key={d.id} style={{ ...styles.tr, cursor: "default" }}>
+                          <td style={{ ...styles.td, fontWeight: 600 }}>
+                            {d.template
+                              ? `${d.template.make} ${d.template.model}`
+                              : <span style={styles.muted}>Unknown</span>}
+                          </td>
+                          <td style={{ ...styles.td, fontSize: 12 }}>
+                            {d.trade ? TRADE_LABEL[d.trade] || d.trade : <span style={styles.muted}>—</span>}
+                          </td>
+                          <td style={styles.td}>{d.label || <span style={styles.muted}>—</span>}</td>
+                          <td style={styles.td}>{d.room || <span style={styles.muted}>—</span>}</td>
+                          <td style={styles.td}>{d.rack_position || <span style={styles.muted}>—</span>}</td>
+                          <td style={{ ...styles.td, fontSize: 12, color: "#6B7280" }}>{portStr}</td>
+                          <td style={styles.td}>
+                            {d.ip_addresses?.length
+                              ? d.ip_addresses.length === 1
+                                ? d.ip_addresses[0].ip || <span style={styles.muted}>—</span>
+                                : `${d.ip_addresses[0].ip} +${d.ip_addresses.length - 1}`
+                              : <span style={styles.muted}>—</span>}
+                          </td>
+                          <td style={{ ...styles.td, whiteSpace: "nowrap" }}>
+                            {canEdit && (
+                              <>
+                                <button style={deviceActionBtn} onClick={() => openDeviceEdit(d)}>Edit</button>
+                                <button style={{ ...deviceActionBtn, color: "#B91C1C", marginLeft: 4 }} onClick={() => handleDeleteDevice(d.id)}>Remove</button>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
-          {projectDevices.length === 0 ? (
-            <EmptyState
-              message="No devices added yet."
-              action={canEdit ? "+ Add Device" : undefined}
-              onAction={openPicker}
-            />
-          ) : (
-            <div style={styles.tableWrap}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    {["Device", "Label / Nickname", "Room", "Rack", "Ports", "IP Address", ""].map((h) => (
-                      <th key={h} style={styles.th}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {projectDevices.map((d) => {
-                    const { inputs, outputs, io } = d.port_summary || {};
-                    const portStr = [
-                      inputs  && `${inputs} in`,
-                      outputs && `${outputs} out`,
-                      io      && `${io} I/O`,
-                    ].filter(Boolean).join(" / ") || "—";
-                    return (
-                      <tr key={d.id} style={{ ...styles.tr, cursor: "default" }}>
-                        <td style={{ ...styles.td, fontWeight: 600 }}>
-                          {d.template
-                            ? `${d.template.make} ${d.template.model}`
-                            : <span style={styles.muted}>Unknown</span>}
-                        </td>
-                        <td style={styles.td}>{d.label || <span style={styles.muted}>—</span>}</td>
-                        <td style={styles.td}>{d.room || <span style={styles.muted}>—</span>}</td>
-                        <td style={styles.td}>{d.rack_position || <span style={styles.muted}>—</span>}</td>
-                        <td style={{ ...styles.td, fontSize: 12, color: "#6B7280" }}>{portStr}</td>
-                        <td style={styles.td}>
-                          {d.ip_addresses?.length
-                            ? d.ip_addresses.length === 1
-                              ? d.ip_addresses[0].ip || <span style={styles.muted}>—</span>
-                              : `${d.ip_addresses[0].ip} +${d.ip_addresses.length - 1}`
-                            : <span style={styles.muted}>—</span>}
-                        </td>
-                        <td style={{ ...styles.td, whiteSpace: "nowrap" }}>
-                          {canEdit && (
-                            <>
-                              <button style={deviceActionBtn} onClick={() => openDeviceEdit(d)}>Edit</button>
-                              <button style={{ ...deviceActionBtn, color: "#B91C1C", marginLeft: 4 }} onClick={() => handleDeleteDevice(d.id)}>Remove</button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+
+          {/* Signal Flow Diagram */}
+          <div style={{ marginTop: 36 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <h2 style={styles.sectionTitle}>Signal Flow Diagram</h2>
+              {activeTrade && canEdit && (
+                <button style={styles.secondaryBtn} onClick={openDiagramInfo}>Diagram Info</button>
+              )}
             </div>
-          )}
-        </div>
+
+            {tradesInUse.length === 0 ? (
+              <p style={{ fontSize: 13, color: "#9CA3AF" }}>
+                Add devices and assign them a trade to use the signal flow canvas.
+              </p>
+            ) : (
+              <>
+                {/* Trade tabs */}
+                <div style={tradeTabBar}>
+                  {tradesInUse.map((t) => (
+                    <button
+                      key={t}
+                      style={{ ...tradeTabBtn, ...(activeTrade === t ? tradeTabActive : {}) }}
+                      onClick={() => handleTradeTabClick(t)}
+                    >
+                      {TRADE_LABEL[t] || t}
+                      <span style={tradeCount}>{projectDevices.filter((d) => d.trade === t).length}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Canvas */}
+                {activeTrade && (
+                  <div style={{ height: 560, marginTop: 12 }}>
+                    <SignalFlowCanvas
+                      projectId={id}
+                      trade={activeTrade}
+                      devices={projectDevices.filter((d) => d.trade === activeTrade)}
+                      connections={connections.filter((c) => c.trade === activeTrade)}
+                      diagram={diagrams[activeTrade] || null}
+                      canEdit={canEdit}
+                      company={company}
+                      onConnectionCreated={(conn) => setConnections((prev) => [...prev, conn])}
+                      onConnectionDeleted={(connId) => setConnections((prev) => prev.filter((c) => c.id !== connId))}
+                      onDeviceEdit={openDeviceEdit}
+                      onDeviceDeleted={(deviceId) => setProjectDevices((prev) => prev.filter((d) => d.id !== deviceId))}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </>
       )}
 
       {/* ── New Work Order Modal ──────────────────────────────────────────────── */}
@@ -803,6 +929,40 @@ export default function ProjectDetailPage() {
         </Modal>
       )}
 
+      {/* ── Diagram Info Modal ───────────────────────────────────────────────── */}
+      {diagramInfoOpen && (
+        <Modal title={`Diagram Info — ${TRADE_LABEL[activeTrade] || activeTrade}`} onClose={() => setDiagramInfoOpen(false)}>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <FormField label="Drawing Title">
+              <input style={styles.input} value={diagramInfoForm.drawing_title} onChange={(e) => setDiagramInfoForm({ ...diagramInfoForm, drawing_title: e.target.value })} placeholder="e.g. AV Signal Flow — Main Conference Room" />
+            </FormField>
+            <FormField label="Location">
+              <input style={styles.input} value={diagramInfoForm.location} onChange={(e) => setDiagramInfoForm({ ...diagramInfoForm, location: e.target.value })} placeholder="e.g. 2nd Floor, Suite 200" />
+            </FormField>
+            <FormField label="Company Name Override">
+              <input style={styles.input} value={diagramInfoForm.company_name_override} onChange={(e) => setDiagramInfoForm({ ...diagramInfoForm, company_name_override: e.target.value })} placeholder="Defaults to company name" />
+            </FormField>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <FormField label="Revision">
+                <input style={styles.input} value={diagramInfoForm.revision} onChange={(e) => setDiagramInfoForm({ ...diagramInfoForm, revision: e.target.value })} placeholder="e.g. Rev A" />
+              </FormField>
+              <FormField label="Drawing Date">
+                <input type="date" style={styles.input} value={diagramInfoForm.drawing_date} onChange={(e) => setDiagramInfoForm({ ...diagramInfoForm, drawing_date: e.target.value })} />
+              </FormField>
+            </div>
+            <FormField label="Drawn By">
+              <input style={styles.input} value={diagramInfoForm.drawn_by} onChange={(e) => setDiagramInfoForm({ ...diagramInfoForm, drawn_by: e.target.value })} placeholder="Your name" />
+            </FormField>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+              <button style={styles.cancelBtn} onClick={() => setDiagramInfoOpen(false)}>Cancel</button>
+              <button style={styles.primaryBtn} disabled={diagramInfoSaving} onClick={handleDiagramInfoSave}>
+                {diagramInfoSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {/* ── Device Picker Modal ───────────────────────────────────────────────── */}
       {pickerOpen && (
         <Modal title="Add Device to Project" onClose={() => setPickerOpen(false)}>
@@ -872,6 +1032,12 @@ export default function ProjectDetailPage() {
 
             {/* Identity */}
             <ModalSection label="Identity">
+              <FormField label="Trade" required>
+                <select style={styles.input} value={deviceForm.trade} onChange={(e) => setDeviceForm({ ...deviceForm, trade: e.target.value })}>
+                  <option value="">— select trade —</option>
+                  {TRADES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+                </select>
+              </FormField>
               <FormField label="Label / Nickname">
                 <input style={styles.input} value={deviceForm.label} onChange={(e) => setDeviceForm({ ...deviceForm, label: e.target.value })} placeholder="e.g. Main Display, Rack AMP-1" />
               </FormField>
@@ -1149,6 +1315,22 @@ const tabBtnActive = {
 const deviceActionBtn = {
   padding: "3px 10px", background: "none", border: "1px solid #E5E7EB",
   borderRadius: 4, fontSize: 12, color: "#374151", cursor: "pointer",
+};
+
+const tradeTabBar = {
+  display: "flex", gap: 4, flexWrap: "wrap", borderBottom: "2px solid #E5E7EB",
+  marginBottom: 4,
+};
+const tradeTabBtn = {
+  display: "flex", alignItems: "center", gap: 6,
+  padding: "8px 16px", background: "none", border: "none",
+  borderBottom: "2px solid transparent", marginBottom: -2,
+  fontSize: 13, fontWeight: 500, color: "#6B7280", cursor: "pointer",
+};
+const tradeTabActive = { color: "#111827", borderBottomColor: "#111827", fontWeight: 600 };
+const tradeCount = {
+  fontSize: 11, fontWeight: 600, background: "#F3F4F6", color: "#6B7280",
+  borderRadius: 10, padding: "1px 6px",
 };
 
 const pickerRowBtn = {

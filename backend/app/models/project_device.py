@@ -71,8 +71,9 @@ class ProjectDevice(db.Model):
 
     notes = db.Column(db.Text, nullable=True)
 
-    # Phase 3C: canvas coordinates keyed by trade name
-    node_position = db.Column(JSONB, nullable=True)
+    # Phase 3C
+    trade = db.Column(db.String(50), nullable=True)   # trade key e.g. "av", "security"
+    node_position = db.Column(JSONB, nullable=True)    # { "av": { x, y }, "security": { x, y } }
 
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at = db.Column(
@@ -114,6 +115,7 @@ class ProjectDevice(db.Model):
             "firmware_version": self.firmware_version,
             "rs232_settings": self.rs232_settings,
             "notes": self.notes,
+            "trade": self.trade,
             "node_position": self.node_position,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),

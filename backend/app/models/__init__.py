@@ -13,6 +13,8 @@ from app.models.visit import Visit, visit_assignments, VisitStatus
 from app.models.attendance import Attendance
 from app.models.device import DeviceTemplate, DeviceCategory
 from app.models.project_device import ProjectDevice
+from app.models.device_connection import DeviceConnection, CONNECTION_TYPES
+from app.models.signal_diagram import SignalDiagram
 
 __all__ = [
     "Company",
@@ -35,4 +37,7 @@ __all__ = [
     "DeviceTemplate",
     "DeviceCategory",
     "ProjectDevice",
+    "DeviceConnection",
+    "CONNECTION_TYPES",
+    "SignalDiagram",
 ]
