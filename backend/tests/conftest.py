@@ -23,7 +23,7 @@ from app.extensions import db as _db
 def _ensure_test_db():
     """Create the zappy_test PostgreSQL database if it does not already exist."""
     conn = psycopg2.connect(
-        dbname="zappy", user="zappy_user", password="zappy_pass", host="db"
+        dbname="zappy_dev", user="zappy_user", password="zappy_pass", host="localhost"
     )
     conn.autocommit = True
     cur = conn.cursor()

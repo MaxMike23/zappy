@@ -7,6 +7,7 @@ __pycache__/
 .eggs/
 dist/
 build/
+backend/venv
 
 # Environment — never commit real secrets
 backend/.env
