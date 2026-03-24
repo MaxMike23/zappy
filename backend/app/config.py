@@ -31,7 +31,7 @@ class ProductionConfig(Config):
 
 class TestingConfig(Config):
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = "postgresql://zappy_user:zappy_pass@db:5432/zappy_test"
+    SQLALCHEMY_DATABASE_URI = "postgresql://zappy_user:zappy_pass@localhost:5432/zappy_test"
     JWT_SECRET_KEY = "test-jwt-secret-key"
 
 
