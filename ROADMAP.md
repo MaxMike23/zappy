@@ -36,7 +36,7 @@
 ### 2B — Visits (Scheduled On-Site Trips) ✅ COMPLETE
 - Visit model: on-site trips under a work order OR directly under a project
 - Clock-in / clock-out records actual arrival and departure times
-- Per-visit assignees (can differ from work order assignees day-to-day)
+- Per-visit assignees (can differ from work order assignees day-to-day); assignee picker present on visit create forms and editable post-creation via "Assignees" button on each visit row; accessible to company_admin, manager, sales, and superadmin roles
 - Status lifecycle: scheduled → in_progress → completed (or cancelled)
 - Global visits list page with status and date-range filters
 - Visits section inline on Work Order detail (quick create + clock-in/out per row)
@@ -270,10 +270,14 @@
 
 **Goal:** Visual scheduling for project managers and dispatchers.
 
-- Calendar view (day / week / month) for work orders
-- Drag-to-reschedule
-- Technician availability and workload view
-- Conflict detection when scheduling overlaps
+- **Day/week/month calendar view** — visits and active projects displayed on a timeline; day view is the primary view
+- **Per-technician swim lanes** — day view organizes visits into vertical columns, one per assigned technician; unassigned visits shown in a separate column
+- **Visit color coding** — each visit block is colored by status: scheduled (blue), in_progress (amber), completed (green), cancelled (gray)
+- **Associated context** — each visit block shows the linked work order or project name beneath the visit title
+- **Desktop only** — calendar view is not rendered on mobile (≤768px); mobile users continue to use the card-based dashboard and visits list
+- Drag-to-reschedule visits directly on the calendar
+- Technician availability and workload view (hours scheduled per day)
+- Conflict detection when scheduling overlaps for the same technician
 
 ---
 
@@ -294,6 +298,7 @@
 
 - In-app notifications (new WO assigned, status change, approval needed)
 - Email notifications via SendGrid or similar
+- **Self-service password reset** — "Forgot password?" link on login triggers an email with a time-limited reset token; requires email infrastructure from this phase
 - Outbound webhooks for external system integration
 - QuickBooks / Xero export for invoices
 - Google Calendar sync for scheduling

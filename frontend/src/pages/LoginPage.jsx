@@ -66,6 +66,9 @@ export default function LoginPage() {
             Register here
           </Link>
         </p>
+        <p style={{ ...styles.registerLink, marginTop: 6, color: "#9CA3AF" }}>
+          Forgot your password? Contact your administrator.
+        </p>
       </div>
     </div>
   );

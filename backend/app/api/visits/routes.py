@@ -58,7 +58,7 @@ def list_visits():
 
 @visits_bp.post("/")
 @jwt_required()
-@require_role(UserRole.COMPANY_ADMIN, UserRole.MANAGER, UserRole.SUPERADMIN)
+@require_role(UserRole.COMPANY_ADMIN, UserRole.MANAGER, UserRole.SALES, UserRole.SUPERADMIN)
 def create_visit():
     data = request.get_json()
     if not data:
@@ -143,7 +143,7 @@ def update_visit(visit_id):
 
     data = request.get_json() or {}
 
-    if current_role in [UserRole.COMPANY_ADMIN, UserRole.MANAGER, UserRole.SUPERADMIN]:
+    if current_role in [UserRole.COMPANY_ADMIN, UserRole.MANAGER, UserRole.SALES, UserRole.SUPERADMIN]:
         for field in ["title", "scheduled_start", "scheduled_end", "status"]:
             if field in data:
                 setattr(visit, field, data[field])

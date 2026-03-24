@@ -59,8 +59,12 @@ export default function WorkOrderDetailPage() {
   const [visits, setVisits]               = useState([]);
   const [showVisitModal, setShowVisitModal] = useState(false);
   const [visitForm, setVisitForm]         = useState({ title: "", scheduled_start: "", scheduled_end: "", notes: "" });
+  const [visitAssigneeIds, setVisitAssigneeIds] = useState([]);
   const [visitCreating, setVisitCreating] = useState(false);
   const [visitError, setVisitError]       = useState("");
+  const [editVisitAssignees, setEditVisitAssignees] = useState(null);
+  const [editVAIds, setEditVAIds]         = useState([]);
+  const [savingVA, setSavingVA]           = useState(false);
 
   const { user, company } = useAuth();
   const canEdit = EDIT_ROLES.includes(user?.role);
@@ -183,7 +187,9 @@ export default function WorkOrderDetailPage() {
     setVisitError("");
     setVisitCreating(true);
     try {
-      const res = await visitsApi.create({ work_order_id: id, ...visitForm });
+      const payload = { work_order_id: id, ...visitForm };
+      if (visitAssigneeIds.length) payload.assignee_ids = visitAssigneeIds;
+      const res = await visitsApi.create(payload);
       setVisits((prev) => [...prev, res.data.visit]);
       setShowVisitModal(false);
     } catch (err) {
@@ -205,6 +211,17 @@ export default function WorkOrderDetailPage() {
       const res = await visitsApi.clockOut(visitId);
       setVisits((prev) => prev.map((v) => v.id === visitId ? res.data.visit : v));
     } catch {/* no-op */}
+  };
+
+  const handleSaveVisitAssignees = async () => {
+    setSavingVA(true);
+    try {
+      const res = await visitsApi.update(editVisitAssignees.id, { assignee_ids: editVAIds });
+      setVisits((prev) => prev.map((v) => v.id === editVisitAssignees.id ? res.data.visit : v));
+      setEditVisitAssignees(null);
+    } catch {/* no-op */} finally {
+      setSavingVA(false);
+    }
   };
 
   if (loading) return <div style={{ display: "flex", justifyContent: "center", padding: 48 }}><Spinner size={28} /></div>;
@@ -375,7 +392,7 @@ export default function WorkOrderDetailPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <h2 style={styles.sectionTitle}>Visits</h2>
             {canEdit && (
-              <button style={styles.secondaryBtn} onClick={() => { setShowVisitModal(true); setVisitForm({ title: "", scheduled_start: "", scheduled_end: "", notes: "" }); setVisitError(""); }}>
+              <button style={styles.secondaryBtn} onClick={() => { setShowVisitModal(true); setVisitForm({ title: "", scheduled_start: "", scheduled_end: "", notes: "" }); setVisitAssigneeIds([]); setVisitError(""); }}>
                 + New Visit
               </button>
             )}
@@ -411,6 +428,9 @@ export default function WorkOrderDetailPage() {
                           )}
                           {canClock && v.is_running && (
                             <button style={{ ...styles.clockBtn, background: "#F59E0B" }} onClick={() => handleClockOut(v.id)}>Clock Out</button>
+                          )}
+                          {canEdit && (
+                            <button style={{ ...styles.clockBtn, background: "#F3F4F6", color: "#374151", marginLeft: 4 }} onClick={() => { setEditVisitAssignees(v); setEditVAIds(v.assignees?.map((a) => a.id) || []); }}>Assignees</button>
                           )}
                         </td>
                       </tr>
@@ -544,11 +564,49 @@ export default function WorkOrderDetailPage() {
             <VisitFormField label="Notes">
               <textarea style={{ ...styles.input, resize: "vertical" }} rows={3} value={visitForm.notes} onChange={(e) => setVisitForm({ ...visitForm, notes: e.target.value })} />
             </VisitFormField>
+            {users.length > 0 && (
+              <VisitFormField label="Assign Technicians">
+                <div style={styles.checkList}>
+                  {users.map((u) => (
+                    <label key={u.id} style={styles.checkRow}>
+                      <input
+                        type="checkbox"
+                        checked={visitAssigneeIds.includes(u.id)}
+                        onChange={(e) => setVisitAssigneeIds((prev) => e.target.checked ? [...prev, u.id] : prev.filter((x) => x !== u.id))}
+                      />
+                      <span>{u.full_name} <span style={{ color: "#9CA3AF", fontSize: 12 }}>({u.role})</span></span>
+                    </label>
+                  ))}
+                </div>
+              </VisitFormField>
+            )}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
               <button type="button" style={styles.cancelBtn} onClick={() => setShowVisitModal(false)}>Cancel</button>
               <button type="submit" style={styles.primaryBtn} disabled={visitCreating}>{visitCreating ? "Creating…" : "Create Visit"}</button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Edit Visit Assignees Modal */}
+      {editVisitAssignees && (
+        <Modal title={`Assignees — ${editVisitAssignees.title}`} onClose={() => setEditVisitAssignees(null)}>
+          <div style={styles.checkList}>
+            {users.map((u) => (
+              <label key={u.id} style={styles.checkRow}>
+                <input
+                  type="checkbox"
+                  checked={editVAIds.includes(u.id)}
+                  onChange={(e) => setEditVAIds((prev) => e.target.checked ? [...prev, u.id] : prev.filter((x) => x !== u.id))}
+                />
+                <span>{u.full_name} <span style={{ color: "#9CA3AF", fontSize: 12 }}>({u.role})</span></span>
+              </label>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
+            <button style={styles.cancelBtn} onClick={() => setEditVisitAssignees(null)}>Cancel</button>
+            <button style={styles.primaryBtn} disabled={savingVA} onClick={handleSaveVisitAssignees}>{savingVA ? "Saving…" : "Save"}</button>
+          </div>
         </Modal>
       )}
     </div>
@@ -698,4 +756,6 @@ const styles = {
   visitTd:      { padding: "10px 14px", color: "#374151", verticalAlign: "middle" },
   clockBtn:     { padding: "4px 12px", background: "#111827", color: "#fff", border: "none", borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: "pointer" },
   visitCard:    { background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column" },
+  checkList:    { display: "flex", flexDirection: "column", gap: 8, maxHeight: 200, overflowY: "auto", padding: "4px 0" },
+  checkRow:     { display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" },
 };

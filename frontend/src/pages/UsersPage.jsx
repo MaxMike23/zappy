@@ -52,6 +52,11 @@ export default function UsersPage() {
   const [saving, setSaving]       = useState(false);
   const [editError, setEditError] = useState("");
 
+  const [resetUser, setResetUser]     = useState(null);
+  const [resetPwd, setResetPwd]       = useState("");
+  const [resetSaving, setResetSaving] = useState(false);
+  const [resetError, setResetError]   = useState("");
+
   const fetchUsers = useCallback(async (role, active, pg) => {
     setLoading(true);
     setError("");
@@ -152,6 +157,21 @@ export default function UsersPage() {
     }
   };
 
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setResetError("");
+    setResetSaving(true);
+    try {
+      await usersApi.update(resetUser.id, { password: resetPwd });
+      setResetUser(null);
+      setResetPwd("");
+    } catch (err) {
+      setResetError(err.response?.data?.error || "Failed to reset password.");
+    } finally {
+      setResetSaving(false);
+    }
+  };
+
   return (
     <div>
       {/* Header */}
@@ -232,6 +252,9 @@ export default function UsersPage() {
                           <div style={styles.actionRow}>
                             <button style={styles.editBtn} onClick={() => openEdit(u)}>Edit</button>
                             {!isSelf && (
+                              <button style={styles.resetBtn} onClick={() => { setResetUser(u); setResetPwd(""); setResetError(""); }}>Reset Pwd</button>
+                            )}
+                            {!isSelf && (
                               u.is_active
                                 ? <button style={styles.deactivateBtn} onClick={() => handleDeactivate(u)}>Deactivate</button>
                                 : <button style={styles.reactivateBtn} onClick={() => handleReactivate(u)}>Reactivate</button>
@@ -296,6 +319,31 @@ export default function UsersPage() {
             <div style={styles.modalFooter}>
               <button type="button" style={styles.cancelBtn} onClick={() => setShowCreate(false)}>Cancel</button>
               <button type="submit" style={styles.primaryBtn} disabled={creating}>{creating ? "Adding…" : "Add User"}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Reset Password Modal */}
+      {resetUser && (
+        <Modal title={`Reset Password — ${resetUser.full_name}`} onClose={() => setResetUser(null)}>
+          <form onSubmit={handleResetPassword} style={styles.form}>
+            {resetError && <div style={styles.errorMsg}>{resetError}</div>}
+            <FormField label="New Password" required>
+              <input
+                type="password"
+                style={styles.input}
+                required
+                minLength={8}
+                value={resetPwd}
+                onChange={(e) => setResetPwd(e.target.value)}
+                placeholder="Min 8 characters"
+                autoFocus
+              />
+            </FormField>
+            <div style={styles.modalFooter}>
+              <button type="button" style={styles.cancelBtn} onClick={() => setResetUser(null)}>Cancel</button>
+              <button type="submit" style={styles.primaryBtn} disabled={resetSaving}>{resetSaving ? "Saving…" : "Set Password"}</button>
             </div>
           </form>
         </Modal>
@@ -380,6 +428,7 @@ const styles = {
   muted:         { color: "#9CA3AF" },
   actionRow:     { display: "flex", gap: 6, flexWrap: "wrap" },
   editBtn:       { padding: "4px 12px", background: "#F3F4F6", color: "#374151", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 12, cursor: "pointer" },
+  resetBtn:      { padding: "4px 12px", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", borderRadius: 5, fontSize: 12, cursor: "pointer" },
   deactivateBtn: { padding: "4px 12px", background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA", borderRadius: 5, fontSize: 12, cursor: "pointer" },
   reactivateBtn: { padding: "4px 12px", background: "#ECFDF5", color: "#059669", border: "1px solid #A7F3D0", borderRadius: 5, fontSize: 12, cursor: "pointer" },
   pagination:    { display: "flex", alignItems: "center", gap: 12, justifyContent: "center", marginTop: 20 },

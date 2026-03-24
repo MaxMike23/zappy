@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { TRADES, TRADE_LABEL } from "@/constants/trades";
+import client from "@/api/client";
 import { projectsApi } from "@/api/projects";
 import { workOrdersApi } from "@/api/workOrders";
 import { workflowApi } from "@/api/workflow";
@@ -88,8 +89,13 @@ export default function ProjectDetailPage() {
   const [directVisits, setDirectVisits]       = useState([]);
   const [showVisitModal, setShowVisitModal]   = useState(false);
   const [visitForm, setVisitForm]             = useState({ title: "", scheduled_start: "", scheduled_end: "", notes: "" });
+  const [visitAssigneeIds, setVisitAssigneeIds] = useState([]);
   const [visitCreating, setVisitCreating]     = useState(false);
   const [visitError, setVisitError]           = useState("");
+  const [teamUsers, setTeamUsers]             = useState([]);
+  const [editVisitAssignees, setEditVisitAssignees] = useState(null);
+  const [editVAIds, setEditVAIds]             = useState([]);
+  const [savingVA, setSavingVA]               = useState(false);
   const [files, setFiles]           = useState([]);
   const [fileUploading, setFileUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -124,7 +130,8 @@ export default function ProjectDetailPage() {
       visitsApi.list({ project_id: id, per_page: 50 }),
       filesApi.list({ project_id: id }),
       projectDevicesApi.list(id),
-    ]).then(([projRes, stagesRes, fieldsRes, wosRes, woStagesRes, visitsRes, filesRes, devRes]) => {
+      client.get("/users/").catch(() => ({ data: { items: [] } })),
+    ]).then(([projRes, stagesRes, fieldsRes, wosRes, woStagesRes, visitsRes, filesRes, devRes, usersRes]) => {
       const p = projRes.data.project;
       setProject(p);
       setEditForm(toEditForm(p));
@@ -135,6 +142,7 @@ export default function ProjectDetailPage() {
       setDirectVisits(visitsRes.data.items.filter((v) => !v.work_order_id));
       setFiles(filesRes.data.files);
       setProjectDevices(devRes.data.devices);
+      setTeamUsers((usersRes.data.items || []).filter((u) => ["technician", "manager", "company_admin", "sales"].includes(u.role)));
     }).catch(() => setError("Failed to load project."))
       .finally(() => setLoading(false));
   }, [id]);
@@ -201,7 +209,9 @@ export default function ProjectDetailPage() {
     setVisitError("");
     setVisitCreating(true);
     try {
-      const res = await visitsApi.create({ project_id: id, ...visitForm });
+      const payload = { project_id: id, ...visitForm };
+      if (visitAssigneeIds.length) payload.assignee_ids = visitAssigneeIds;
+      const res = await visitsApi.create(payload);
       setDirectVisits((prev) => [...prev, res.data.visit]);
       setShowVisitModal(false);
     } catch (err) {
@@ -223,6 +233,17 @@ export default function ProjectDetailPage() {
       const res = await visitsApi.clockOut(visitId);
       setDirectVisits((prev) => prev.map((v) => v.id === visitId ? res.data.visit : v));
     } catch {/* no-op */}
+  };
+
+  const handleSaveVisitAssignees = async () => {
+    setSavingVA(true);
+    try {
+      const res = await visitsApi.update(editVisitAssignees.id, { assignee_ids: editVAIds });
+      setDirectVisits((prev) => prev.map((v) => v.id === editVisitAssignees.id ? res.data.visit : v));
+      setEditVisitAssignees(null);
+    } catch {/* no-op */} finally {
+      setSavingVA(false);
+    }
   };
 
   // ── files ─────────────────────────────────────────────────────────────────────
@@ -537,7 +558,7 @@ export default function ProjectDetailPage() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <h2 style={styles.sectionTitle}>Direct Visits</h2>
               {canEdit && (
-                <button style={styles.secondaryBtn} onClick={() => { setShowVisitModal(true); setVisitForm({ title: "", scheduled_start: "", scheduled_end: "", notes: "" }); setVisitError(""); }}>
+                <button style={styles.secondaryBtn} onClick={() => { setShowVisitModal(true); setVisitForm({ title: "", scheduled_start: "", scheduled_end: "", notes: "" }); setVisitAssigneeIds([]); setVisitError(""); }}>
                   + New Visit
                 </button>
               )}
@@ -571,6 +592,9 @@ export default function ProjectDetailPage() {
                             )}
                             {canClock && v.is_running && (
                               <button style={{ ...visitClockBtn, background: "#F59E0B" }} onClick={() => handleClockOut(v.id)}>Clock Out</button>
+                            )}
+                            {canEdit && (
+                              <button style={{ ...visitClockBtn, background: "#F3F4F6", color: "#374151", marginLeft: 4 }} onClick={() => { setEditVisitAssignees(v); setEditVAIds(v.assignees?.map((a) => a.id) || []); }}>Assignees</button>
                             )}
                           </td>
                         </tr>
@@ -733,11 +757,49 @@ export default function ProjectDetailPage() {
             <FormField label="Notes">
               <textarea style={{ ...styles.input, resize: "vertical" }} rows={3} value={visitForm.notes} onChange={(e) => setVisitForm({ ...visitForm, notes: e.target.value })} />
             </FormField>
+            {teamUsers.length > 0 && (
+              <FormField label="Assign Technicians">
+                <div style={styles.checkList}>
+                  {teamUsers.map((u) => (
+                    <label key={u.id} style={styles.checkRow}>
+                      <input
+                        type="checkbox"
+                        checked={visitAssigneeIds.includes(u.id)}
+                        onChange={(e) => setVisitAssigneeIds((prev) => e.target.checked ? [...prev, u.id] : prev.filter((x) => x !== u.id))}
+                      />
+                      <span>{u.full_name} <span style={{ color: "#9CA3AF", fontSize: 12 }}>({u.role})</span></span>
+                    </label>
+                  ))}
+                </div>
+              </FormField>
+            )}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
               <button type="button" style={styles.cancelBtn} onClick={() => setShowVisitModal(false)}>Cancel</button>
               <button type="submit" style={styles.primaryBtn} disabled={visitCreating}>{visitCreating ? "Creating…" : "Create Visit"}</button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Edit Visit Assignees Modal */}
+      {editVisitAssignees && (
+        <Modal title={`Assignees — ${editVisitAssignees.title}`} onClose={() => setEditVisitAssignees(null)}>
+          <div style={styles.checkList}>
+            {teamUsers.map((u) => (
+              <label key={u.id} style={styles.checkRow}>
+                <input
+                  type="checkbox"
+                  checked={editVAIds.includes(u.id)}
+                  onChange={(e) => setEditVAIds((prev) => e.target.checked ? [...prev, u.id] : prev.filter((x) => x !== u.id))}
+                />
+                <span>{u.full_name} <span style={{ color: "#9CA3AF", fontSize: 12 }}>({u.role})</span></span>
+              </label>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
+            <button style={styles.cancelBtn} onClick={() => setEditVisitAssignees(null)}>Cancel</button>
+            <button style={styles.primaryBtn} disabled={savingVA} onClick={handleSaveVisitAssignees}>{savingVA ? "Saving…" : "Save"}</button>
+          </div>
         </Modal>
       )}
 
@@ -1155,4 +1217,6 @@ const styles = {
   cancelBtn:    { padding: "8px 18px", background: "#fff", color: "#374151", border: "1px solid #D1D5DB", borderRadius: 6, fontSize: 13, cursor: "pointer" },
   errorMsg:     { color: "#B91C1C", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, padding: "10px 14px", fontSize: 13, marginBottom: 12 },
   input:        { padding: "8px 10px", border: "1px solid #D1D5DB", borderRadius: 6, fontSize: 14, outline: "none", fontFamily: "inherit", width: "100%", boxSizing: "border-box" },
+  checkList:    { display: "flex", flexDirection: "column", gap: 8, maxHeight: 200, overflowY: "auto", padding: "4px 0" },
+  checkRow:     { display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" },
 };

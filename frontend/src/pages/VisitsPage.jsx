@@ -4,6 +4,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { visitsApi } from "@/api/visits";
 import { workOrdersApi } from "@/api/workOrders";
 import { projectsApi } from "@/api/projects";
+import client from "@/api/client";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
@@ -16,7 +17,7 @@ const STATUS_COLORS = {
   cancelled: "#9CA3AF",
 };
 const STATUSES = ["scheduled", "in_progress", "completed", "cancelled"];
-const ALLOWED_CREATE = ["company_admin", "manager", "superadmin"];
+const ALLOWED_CREATE = ["company_admin", "manager", "sales", "superadmin"];
 
 const VISIT_TIME_STEP = 15; // minutes; will be a settings value in a future phase
 
@@ -36,6 +37,7 @@ const EMPTY_FORM = {
   scheduled_start: "",
   scheduled_end: "",
   notes: "",
+  assignee_ids: [],
 };
 
 export default function VisitsPage() {
@@ -58,6 +60,12 @@ export default function VisitsPage() {
 
   const [workOrders, setWorkOrders] = useState([]);
   const [projects, setProjects]     = useState([]);
+  const [teamUsers, setTeamUsers]   = useState([]);
+
+  // visit-assignee edit modal state
+  const [editVisitAssignees, setEditVisitAssignees]   = useState(null); // visit object
+  const [editVAIds, setEditVAIds]                     = useState([]);
+  const [savingVA, setSavingVA]                       = useState(false);
 
   const canCreate = ALLOWED_CREATE.includes(user?.role);
 
@@ -84,9 +92,11 @@ export default function VisitsPage() {
     Promise.all([
       workOrdersApi.list({ per_page: 100 }),
       projectsApi.list({ per_page: 100 }),
-    ]).then(([woRes, projRes]) => {
+      client.get("/users/").catch(() => ({ data: { items: [] } })),
+    ]).then(([woRes, projRes, usersRes]) => {
       setWorkOrders(woRes.data.items);
       setProjects(projRes.data.items);
+      setTeamUsers((usersRes.data.items || []).filter((u) => ["technician", "manager", "company_admin", "sales"].includes(u.role)));
     }).catch(() => {});
   }, [fetchVisits]);
 
@@ -106,6 +116,7 @@ export default function VisitsPage() {
         payload.project_id = createForm.project_id;
       }
       if (createForm.notes.trim()) payload.notes = createForm.notes.trim();
+      if (createForm.assignee_ids.length) payload.assignee_ids = createForm.assignee_ids;
       await visitsApi.create(payload);
       setShowCreate(false);
       fetchVisits(statusFilter, afterFilter, beforeFilter, page);
@@ -113,6 +124,17 @@ export default function VisitsPage() {
       setCreateError(err.response?.data?.error || "Failed to create visit.");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleSaveVisitAssignees = async () => {
+    setSavingVA(true);
+    try {
+      const res = await visitsApi.update(editVisitAssignees.id, { assignee_ids: editVAIds });
+      setVisits((prev) => prev.map((v) => v.id === editVisitAssignees.id ? res.data.visit : v));
+      setEditVisitAssignees(null);
+    } catch {/* no-op */} finally {
+      setSavingVA(false);
     }
   };
 
@@ -170,7 +192,7 @@ export default function VisitsPage() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  {["Title", "Parent", "Status", "Assignees", "Scheduled Start", "Duration"].map((h) => (
+                  {["Title", "Parent", "Status", "Assignees", "Scheduled Start", "Duration", ...(canCreate ? [""] : [])].map((h) => (
                     <th key={h} style={styles.th}>{h}</th>
                   ))}
                 </tr>
@@ -190,6 +212,11 @@ export default function VisitsPage() {
                     <td style={styles.td}>{v.assignees?.length ? v.assignees.map((a) => a.full_name).join(", ") : <span style={styles.muted}>Unassigned</span>}</td>
                     <td style={styles.td}>{formatDateTime(v.scheduled_start)}</td>
                     <td style={styles.td}>{v.duration_minutes != null ? `${v.duration_minutes} min` : <span style={styles.muted}>—</span>}</td>
+                    {canCreate && (
+                      <td style={styles.td}>
+                        <button style={styles.editBtn} onClick={() => { setEditVisitAssignees(v); setEditVAIds(v.assignees?.map((a) => a.id) || []); }}>Assignees</button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -252,11 +279,53 @@ export default function VisitsPage() {
               <textarea style={{ ...styles.input, resize: "vertical" }} rows={3} value={createForm.notes} onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })} />
             </FormField>
 
+            {teamUsers.length > 0 && (
+              <FormField label="Assign Technicians">
+                <div style={styles.checkList}>
+                  {teamUsers.map((u) => (
+                    <label key={u.id} style={styles.checkRow}>
+                      <input
+                        type="checkbox"
+                        checked={createForm.assignee_ids.includes(u.id)}
+                        onChange={(e) => setCreateForm((f) => ({
+                          ...f,
+                          assignee_ids: e.target.checked ? [...f.assignee_ids, u.id] : f.assignee_ids.filter((x) => x !== u.id),
+                        }))}
+                      />
+                      <span>{u.full_name} <span style={styles.roleTag}>({u.role})</span></span>
+                    </label>
+                  ))}
+                </div>
+              </FormField>
+            )}
+
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
               <button type="button" style={styles.cancelBtn} onClick={() => setShowCreate(false)}>Cancel</button>
               <button type="submit" style={styles.primaryBtn} disabled={creating}>{creating ? "Creating…" : "Create Visit"}</button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Edit Assignees Modal */}
+      {editVisitAssignees && (
+        <Modal title={`Assignees — ${editVisitAssignees.title}`} onClose={() => setEditVisitAssignees(null)}>
+          <div style={styles.checkList}>
+            {teamUsers.map((u) => (
+              <label key={u.id} style={styles.checkRow}>
+                <input
+                  type="checkbox"
+                  checked={editVAIds.includes(u.id)}
+                  onChange={(e) => setEditVAIds((prev) => e.target.checked ? [...prev, u.id] : prev.filter((x) => x !== u.id))}
+                />
+                <span>{u.full_name} <span style={styles.roleTag}>({u.role})</span></span>
+              </label>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
+            <button style={styles.cancelBtn} onClick={() => setEditVisitAssignees(null)}>Cancel</button>
+            <button style={styles.primaryBtn} disabled={savingVA} onClick={handleSaveVisitAssignees}>{savingVA ? "Saving…" : "Save"}</button>
+          </div>
         </Modal>
       )}
     </div>
@@ -302,4 +371,8 @@ const styles = {
   row2:        { display: "flex", gap: 12 },
   input:       { padding: "8px 10px", border: "1px solid #D1D5DB", borderRadius: 6, fontSize: 14, outline: "none", fontFamily: "inherit", width: "100%" },
   cancelBtn:   { padding: "8px 18px", background: "#fff", color: "#374151", border: "1px solid #D1D5DB", borderRadius: 6, fontSize: 13, cursor: "pointer" },
+  editBtn:     { padding: "3px 10px", background: "#F3F4F6", color: "#374151", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 12, cursor: "pointer" },
+  checkList:   { display: "flex", flexDirection: "column", gap: 8, maxHeight: 200, overflowY: "auto", padding: "4px 0" },
+  checkRow:    { display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" },
+  roleTag:     { color: "#9CA3AF", fontSize: 12 },
 };
