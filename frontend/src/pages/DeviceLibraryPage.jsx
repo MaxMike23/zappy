@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/auth/AuthContext";
 import { devicesApi } from "@/api/devices";
 
+// Safe UUID that works in all contexts (including non-HTTPS LAN dev access)
+let _uid = 0;
+function genId() {
+  return `${Date.now().toString(36)}-${(++_uid).toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 const CATEGORIES = [
   { value: "display",           label: "Display" },
   { value: "processor",         label: "Processor / Scaler" },
@@ -57,12 +63,12 @@ const EMPTY_FORM = {
 };
 
 function newMatrixGroup() {
-  return { id: crypto.randomUUID(), signal_type: "Video", connector_type: "", input_count: 0, output_count: 0, io_count: 0 };
+  return { id: genId(), signal_type: "Video", connector_type: "", input_count: 0, output_count: 0, io_count: 0 };
 }
 
 function newPort(direction) {
   return {
-    id: crypto.randomUUID(),
+    id: genId(),
     label: "",
     direction,      // "input" | "output" | "io"
     signal_type: "Video",
@@ -140,7 +146,7 @@ export default function DeviceLibraryPage() {
       has_web_gui: device.has_web_gui || false,
       is_matrix: device.is_matrix || false,
       ports: device.ports.map(withCustomFlag),
-      matrix_ports: (device.matrix_ports || []).map((g) => ({ ...g, id: crypto.randomUUID() })),
+      matrix_ports: (device.matrix_ports || []).map((g) => ({ ...g, id: genId() })),
     });
     setError("");
     setModalOpen(true);
@@ -164,7 +170,7 @@ export default function DeviceLibraryPage() {
       has_web_gui: device.has_web_gui || false,
       is_matrix: device.is_matrix || false,
       ports: device.ports.map(withCustomFlag),
-      matrix_ports: (device.matrix_ports || []).map((g) => ({ ...g, id: crypto.randomUUID() })),
+      matrix_ports: (device.matrix_ports || []).map((g) => ({ ...g, id: genId() })),
     });
     setError("");
     setModalOpen(true);
@@ -183,10 +189,10 @@ export default function DeviceLibraryPage() {
     setForm((f) => ({ ...f, ports: [...f.ports, newPort(direction)] }));
   }
 
-  function updatePort(id, field, value) {
+  function updatePort(id, fields) {
     setForm((f) => ({
       ...f,
-      ports: f.ports.map((p) => p.id === id ? { ...p, [field]: value } : p),
+      ports: f.ports.map((p) => p.id === id ? { ...p, ...fields } : p),
     }));
   }
 
@@ -200,10 +206,10 @@ export default function DeviceLibraryPage() {
     setForm((f) => ({ ...f, matrix_ports: [...f.matrix_ports, newMatrixGroup()] }));
   }
 
-  function updateMatrixGroup(id, field, value) {
+  function updateMatrixGroup(id, fields) {
     setForm((f) => ({
       ...f,
-      matrix_ports: f.matrix_ports.map((g) => g.id === id ? { ...g, [field]: value } : g),
+      matrix_ports: f.matrix_ports.map((g) => g.id === id ? { ...g, ...fields } : g),
     }));
   }
 
@@ -771,7 +777,7 @@ function PortList({ title, ports, direction, readOnly, onAdd, onUpdate, onRemove
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{title}</span>
         {!readOnly && (
-          <button style={portStyles.addPortBtn} onClick={onAdd}>+ Add</button>
+          <button type="button" style={portStyles.addPortBtn} onClick={onAdd}>+ Add</button>
         )}
       </div>
 
@@ -793,7 +799,7 @@ function PortList({ title, ports, direction, readOnly, onAdd, onUpdate, onRemove
               style={portStyles.labelInput}
               placeholder="Label (e.g. HDMI In 1)"
               value={port.label}
-              onChange={(e) => onUpdate(port.id, "label", e.target.value)}
+              onChange={(e) => onUpdate(port.id, { label: e.target.value })}
               disabled={readOnly}
             />
 
@@ -802,14 +808,12 @@ function PortList({ title, ports, direction, readOnly, onAdd, onUpdate, onRemove
               style={portStyles.select}
               value={port.signal_type}
               onChange={(e) => {
-                // When signal type changes, reset connector unless it's in new list
                 const newList = CONNECTOR_MAP[e.target.value] ?? ALL_CONNECTORS;
                 const keepConn = newList.includes(port.connector_type);
-                onUpdate(port.id, "signal_type", e.target.value);
-                if (!keepConn) {
-                  onUpdate(port.id, "connector_type", "");
-                  onUpdate(port.id, "_custom", false);
-                }
+                onUpdate(port.id, keepConn
+                  ? { signal_type: e.target.value }
+                  : { signal_type: e.target.value, connector_type: "", _custom: false }
+                );
               }}
               disabled={readOnly}
             >
@@ -823,18 +827,16 @@ function PortList({ title, ports, direction, readOnly, onAdd, onUpdate, onRemove
                   style={{ ...portStyles.labelInput, flex: 1 }}
                   placeholder="Custom connector..."
                   value={port.connector_type}
-                  onChange={(e) => onUpdate(port.id, "connector_type", e.target.value)}
+                  onChange={(e) => onUpdate(port.id, { connector_type: e.target.value })}
                   disabled={readOnly}
                   autoFocus
                 />
                 {!readOnly && (
                   <button
+                    type="button"
                     style={portStyles.backToListBtn}
                     title="Back to predefined list"
-                    onClick={() => {
-                      onUpdate(port.id, "connector_type", "");
-                      onUpdate(port.id, "_custom", false);
-                    }}
+                    onClick={() => onUpdate(port.id, { connector_type: "", _custom: false })}
                   >←</button>
                 )}
               </div>
@@ -844,10 +846,9 @@ function PortList({ title, ports, direction, readOnly, onAdd, onUpdate, onRemove
                 value={port.connector_type || ""}
                 onChange={(e) => {
                   if (e.target.value === "__custom__") {
-                    onUpdate(port.id, "connector_type", "");
-                    onUpdate(port.id, "_custom", true);
+                    onUpdate(port.id, { connector_type: "", _custom: true });
                   } else {
-                    onUpdate(port.id, "connector_type", e.target.value);
+                    onUpdate(port.id, { connector_type: e.target.value });
                   }
                 }}
                 disabled={readOnly}
@@ -859,7 +860,7 @@ function PortList({ title, ports, direction, readOnly, onAdd, onUpdate, onRemove
             )}
 
             {!readOnly && (
-              <button style={portStyles.removeBtn} onClick={() => onRemove(port.id)}>✕</button>
+              <button type="button" style={portStyles.removeBtn} onClick={() => onRemove(port.id)}>✕</button>
             )}
           </div>
         );
@@ -876,7 +877,7 @@ function MatrixPortList({ groups, readOnly, onAdd, onUpdate, onRemove }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Matrix Port Counts</span>
         {!readOnly && (
-          <button style={portStyles.addPortBtn} onClick={onAdd}>+ Add Row</button>
+          <button type="button" style={portStyles.addPortBtn} onClick={onAdd}>+ Add Row</button>
         )}
       </div>
 
@@ -906,8 +907,10 @@ function MatrixPortList({ groups, readOnly, onAdd, onUpdate, onRemove }) {
               value={g.signal_type}
               onChange={(e) => {
                 const newList = CONNECTOR_MAP[e.target.value] ?? ALL_CONNECTORS;
-                onUpdate(g.id, "signal_type", e.target.value);
-                if (!newList.includes(g.connector_type)) onUpdate(g.id, "connector_type", "");
+                onUpdate(g.id, newList.includes(g.connector_type)
+                  ? { signal_type: e.target.value }
+                  : { signal_type: e.target.value, connector_type: "" }
+                );
               }}
               disabled={readOnly}
             >
@@ -917,7 +920,7 @@ function MatrixPortList({ groups, readOnly, onAdd, onUpdate, onRemove }) {
             <select
               style={{ ...portStyles.select, flex: 2 }}
               value={g.connector_type || ""}
-              onChange={(e) => onUpdate(g.id, "connector_type", e.target.value)}
+              onChange={(e) => onUpdate(g.id, { connector_type: e.target.value })}
               disabled={readOnly}
             >
               <option value="">Any / Mixed</option>
@@ -931,13 +934,13 @@ function MatrixPortList({ groups, readOnly, onAdd, onUpdate, onRemove }) {
                 min={0}
                 style={portStyles.countInput}
                 value={g[key]}
-                onChange={(e) => onUpdate(g.id, key, Math.max(0, parseInt(e.target.value) || 0))}
+                onChange={(e) => onUpdate(g.id, { [key]: Math.max(0, parseInt(e.target.value) || 0) })}
                 disabled={readOnly}
               />
             ))}
 
             {!readOnly && (
-              <button style={portStyles.removeBtn} onClick={() => onRemove(g.id)}>✕</button>
+              <button type="button" style={portStyles.removeBtn} onClick={() => onRemove(g.id)}>✕</button>
             )}
           </div>
         );
