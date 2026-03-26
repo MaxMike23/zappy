@@ -59,6 +59,7 @@ const ALL_CONNECTORS = [...new Set(Object.values(CONNECTOR_MAP).flat())].sort();
 const EMPTY_FORM = {
   make: "", model: "", category: "other", notes: "",
   has_ip: false, has_web_gui: false, is_matrix: false,
+  is_rack: false, rack_units: 42, is_back_facing: false,
   ports: [], matrix_ports: [],
 };
 
@@ -145,6 +146,9 @@ export default function DeviceLibraryPage() {
       has_ip: device.has_ip || false,
       has_web_gui: device.has_web_gui || false,
       is_matrix: device.is_matrix || false,
+      is_rack: device.is_rack || false,
+      rack_units: device.rack_units ?? 42,
+      is_back_facing: device.is_back_facing || false,
       ports: device.ports.map(withCustomFlag),
       matrix_ports: (device.matrix_ports || []).map((g) => ({ ...g, id: genId() })),
     });
@@ -169,6 +173,9 @@ export default function DeviceLibraryPage() {
       has_ip: device.has_ip || false,
       has_web_gui: device.has_web_gui || false,
       is_matrix: device.is_matrix || false,
+      is_rack: device.is_rack || false,
+      rack_units: device.rack_units ?? 42,
+      is_back_facing: device.is_back_facing || false,
       ports: device.ports.map(withCustomFlag),
       matrix_ports: (device.matrix_ports || []).map((g) => ({ ...g, id: genId() })),
     });
@@ -229,8 +236,8 @@ export default function DeviceLibraryPage() {
     // Strip UI-only flags before sending to API
     const payload = {
       ...form,
-      ports: form.ports.map(({ _custom, ...p }) => p),
-      matrix_ports: form.matrix_ports.map(({ id, ...g }) => g),
+      ports: form.is_rack ? [] : form.ports.map(({ _custom, ...p }) => p),
+      matrix_ports: form.is_rack ? [] : form.matrix_ports.map(({ id, ...g }) => g),
     };
     try {
       if (editing) {
@@ -367,7 +374,15 @@ export default function DeviceLibraryPage() {
 
   // ── Port counts ───────────────────────────────────────────────────────────────
 
-  function portSummary(ports) {
+  function portSummary(device) {
+    if (device.is_rack) {
+      return (
+        <span style={{ color: "#6B7280", fontSize: 12 }}>
+          Rack — {device.rack_units ?? "?"}U{device.is_back_facing ? " (F+B)" : ""}
+        </span>
+      );
+    }
+    const ports = device.ports || [];
     const ins  = ports.filter((p) => p.direction === "input").length;
     const outs = ports.filter((p) => p.direction === "output").length;
     const ios  = ports.filter((p) => p.direction === "io").length;
@@ -443,7 +458,7 @@ export default function DeviceLibraryPage() {
                   <td style={styles.td}>{d.make}</td>
                   <td style={styles.td}>{d.model}</td>
                   <td style={styles.td}>{d.category_label}</td>
-                  <td style={styles.td}>{portSummary(d.ports)}</td>
+                  <td style={styles.td}>{portSummary(d)}</td>
                   <td style={styles.td}>
                     <div style={styles.actions}>
                       <button style={styles.approveBtn} onClick={() => handleApprove(d)}>Approve</button>
@@ -503,7 +518,7 @@ export default function DeviceLibraryPage() {
                   <td style={{ ...styles.td, fontWeight: 600 }}>{d.make}</td>
                   <td style={styles.td}>{d.model}</td>
                   <td style={styles.td}>{d.category_label}</td>
-                  <td style={styles.td}>{portSummary(d.ports)}</td>
+                  <td style={styles.td}>{portSummary(d)}</td>
                   <td style={styles.td}><ScopeBadge device={d} /></td>
                   <td style={styles.td}>
                     <div style={styles.actions}>
@@ -696,57 +711,114 @@ export default function DeviceLibraryPage() {
                       type="checkbox"
                       checked={form.is_matrix}
                       onChange={(e) => setForm((f) => ({ ...f, is_matrix: e.target.checked }))}
-                      disabled={isReadOnlyModal}
+                      disabled={isReadOnlyModal || form.is_rack}
                       style={{ marginRight: 8 }}
                     />
                     Is Matrix / Switch?
                     <span style={styles.checkboxHint}> — define port counts by signal type below</span>
                   </label>
+
+                  <label style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={form.is_rack}
+                      onChange={(e) => setForm((f) => ({
+                        ...f,
+                        is_rack: e.target.checked,
+                        is_matrix: e.target.checked ? false : f.is_matrix,
+                        ports: e.target.checked ? [] : f.ports,
+                        matrix_ports: e.target.checked ? [] : f.matrix_ports,
+                      }))}
+                      disabled={isReadOnlyModal}
+                      style={{ marginRight: 8 }}
+                    />
+                    Is Rack?
+                    <span style={styles.checkboxHint}> — this device is a rack enclosure, not a signal device</span>
+                  </label>
                 </div>
               </div>
 
-              {/* Ports */}
-              <div style={styles.portsSection}>
-                <PortList
-                  title="Input Ports"
-                  ports={inputPorts}
-                  direction="input"
-                  readOnly={isReadOnlyModal}
-                  onAdd={() => addPort("input")}
-                  onUpdate={updatePort}
-                  onRemove={removePort}
-                />
-                <PortList
-                  title="Output Ports"
-                  ports={outputPorts}
-                  direction="output"
-                  readOnly={isReadOnlyModal}
-                  onAdd={() => addPort("output")}
-                  onUpdate={updatePort}
-                  onRemove={removePort}
-                />
-                <PortList
-                  title="I/O Ports (Bidirectional)"
-                  ports={ioPorts}
-                  direction="io"
-                  readOnly={isReadOnlyModal}
-                  onAdd={() => addPort("io")}
-                  onUpdate={updatePort}
-                  onRemove={removePort}
-                />
-              </div>
-
-              {/* Matrix Port Counts */}
-              {form.is_matrix && (
-                <div style={styles.portsSection}>
-                  <MatrixPortList
-                    groups={form.matrix_ports}
-                    readOnly={isReadOnlyModal}
-                    onAdd={addMatrixGroup}
-                    onUpdate={updateMatrixGroup}
-                    onRemove={removeMatrixGroup}
-                  />
+              {/* Rack dimensions (shown when is_rack) */}
+              {form.is_rack && (
+                <div style={{ ...styles.portsSection, paddingTop: 0 }}>
+                  <div style={styles.row}>
+                    <div style={styles.field}>
+                      <label style={styles.label}>Rack Units (RU)</label>
+                      <input
+                        type="number"
+                        style={styles.input}
+                        value={form.rack_units}
+                        min={1}
+                        max={100}
+                        onChange={(e) => setForm((f) => ({ ...f, rack_units: parseInt(e.target.value) || 1 }))}
+                        disabled={isReadOnlyModal}
+                      />
+                    </div>
+                    <div style={styles.field}>
+                      <label style={styles.label}>Has Accessible Back Panel?</label>
+                      <div style={{ display: "flex", alignItems: "center", height: 36 }}>
+                        <label style={{ ...styles.checkboxLabel, margin: 0 }}>
+                          <input
+                            type="checkbox"
+                            checked={form.is_back_facing}
+                            onChange={(e) => setForm((f) => ({ ...f, is_back_facing: e.target.checked }))}
+                            disabled={isReadOnlyModal}
+                            style={{ marginRight: 8 }}
+                          />
+                          Yes — show front &amp; back panels in rack layout
+                        </label>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              )}
+
+              {/* Ports (hidden for rack devices) */}
+              {!form.is_rack && (
+                <>
+                  <div style={styles.portsSection}>
+                    <PortList
+                      title="Input Ports"
+                      ports={inputPorts}
+                      direction="input"
+                      readOnly={isReadOnlyModal}
+                      onAdd={() => addPort("input")}
+                      onUpdate={updatePort}
+                      onRemove={removePort}
+                    />
+                    <PortList
+                      title="Output Ports"
+                      ports={outputPorts}
+                      direction="output"
+                      readOnly={isReadOnlyModal}
+                      onAdd={() => addPort("output")}
+                      onUpdate={updatePort}
+                      onRemove={removePort}
+                    />
+                    <PortList
+                      title="I/O Ports (Bidirectional)"
+                      ports={ioPorts}
+                      direction="io"
+                      readOnly={isReadOnlyModal}
+                      onAdd={() => addPort("io")}
+                      onUpdate={updatePort}
+                      onRemove={removePort}
+                    />
+                  </div>
+
+                  {/* Matrix Port Counts */}
+                  {form.is_matrix && (
+                    <div style={styles.portsSection}>
+                      <MatrixPortList
+                        groups={form.matrix_ports}
+                        readOnly={isReadOnlyModal}
+                        onAdd={addMatrixGroup}
+                        onUpdate={updateMatrixGroup}
+                        onRemove={removeMatrixGroup}
+                      />
+                    </div>
+                  )}
+                </>
               )}
 
               {error && <p style={styles.errorMsg}>{error}</p>}

@@ -69,6 +69,7 @@ def add_project_device(project_id):
         company_id=company_id,
         template_id=template_id,
         trade=data.get("trade") or None,
+        extra_trades=data.get("extra_trades") or [],
         label=data.get("label") or None,
         room=data.get("room") or None,
         rack_position=data.get("rack_position") or None,
@@ -103,6 +104,8 @@ def update_project_device(project_id, device_id):
     for field in ("trade", "label", "room", "rack_position", "username", "password", "firmware_version", "notes"):
         if field in data:
             setattr(device, field, data[field] or None)
+    if "extra_trades" in data:
+        device.extra_trades = data["extra_trades"] or []
     if "ip_addresses" in data:
         device.ip_addresses = data["ip_addresses"] or []
     if "stream_urls" in data:
@@ -140,6 +143,30 @@ def update_device_position(project_id, device_id):
     device.node_position = current
     db.session.commit()
     return jsonify({"ok": True}), 200
+
+
+@projects_bp.patch("/<project_id>/devices/<device_id>/rack-placement")
+@jwt_required()
+@require_role(UserRole.COMPANY_ADMIN, UserRole.MANAGER, UserRole.SUPERADMIN)
+def update_rack_placement(project_id, device_id):
+    """Set or clear which rack slot this device occupies."""
+    company_id = get_current_company_id()
+    if not _get_project_or_404(project_id, company_id):
+        return jsonify({"error": "Project not found."}), 404
+
+    device = ProjectDevice.query.filter_by(
+        id=device_id, project_id=project_id, company_id=company_id
+    ).first()
+    if not device:
+        return jsonify({"error": "Device not found."}), 404
+
+    data = request.get_json() or {}
+    # Pass rack_id=null to remove from rack
+    device.rack_id = data.get("rack_id") or None
+    device.rack_slot = data.get("rack_slot") or None
+    device.rack_facing = data.get("rack_facing") or None
+    db.session.commit()
+    return jsonify({"device": device.to_dict()}), 200
 
 
 @projects_bp.delete("/<project_id>/devices/<device_id>")

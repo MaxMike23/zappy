@@ -72,8 +72,18 @@ class ProjectDevice(db.Model):
     notes = db.Column(db.Text, nullable=True)
 
     # Phase 3C
-    trade = db.Column(db.String(50), nullable=True)   # trade key e.g. "av", "security"
+    trade = db.Column(db.String(50), nullable=True)    # primary trade key e.g. "av", "security"
+    extra_trades = db.Column(JSONB, nullable=False, default=list)  # additional trades ["networking", ...]
     node_position = db.Column(JSONB, nullable=True)    # { "av": { x, y }, "security": { x, y } }
+
+    # Rack placement (used when placed inside a rack device)
+    rack_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("project_devices.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    rack_slot = db.Column(db.Integer, nullable=True)   # 1-based starting RU slot
+    rack_facing = db.Column(db.String(10), nullable=True)  # "front" | "back"
 
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at = db.Column(
@@ -116,7 +126,11 @@ class ProjectDevice(db.Model):
             "rs232_settings": self.rs232_settings,
             "notes": self.notes,
             "trade": self.trade,
+            "extra_trades": self.extra_trades or [],
             "node_position": self.node_position,
+            "rack_id": str(self.rack_id) if self.rack_id else None,
+            "rack_slot": self.rack_slot,
+            "rack_facing": self.rack_facing,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }

@@ -99,6 +99,10 @@ class DeviceTemplate(db.Model):
     has_ip = db.Column(db.Boolean, nullable=False, default=False)
     has_web_gui = db.Column(db.Boolean, nullable=False, default=False)
     is_matrix = db.Column(db.Boolean, nullable=False, default=False)
+    # Rack device: is_rack replaces ports/matrix with physical rack dimensions
+    is_rack = db.Column(db.Boolean, nullable=False, default=False)
+    rack_units = db.Column(db.Integer, nullable=True)          # number of rack units (e.g. 42)
+    is_back_facing = db.Column(db.Boolean, nullable=False, default=False)  # rack has accessible back panel
     ports = db.Column(JSONB, nullable=False, default=list)
     matrix_ports = db.Column(JSONB, nullable=False, default=list)
 
@@ -126,6 +130,9 @@ class DeviceTemplate(db.Model):
             "has_ip": self.has_ip,
             "has_web_gui": self.has_web_gui,
             "is_matrix": self.is_matrix,
+            "is_rack": self.is_rack,
+            "rack_units": self.rack_units,
+            "is_back_facing": self.is_back_facing,
             "ports": self.ports or [],
             "matrix_ports": self.matrix_ports or [],
             "created_at": self.created_at.isoformat(),

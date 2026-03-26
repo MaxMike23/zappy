@@ -34,10 +34,11 @@ import "reactflow/dist/style.css";
 import dagre from "@dagrejs/dagre";
 import { connectionsApi } from "@/api/connections";
 import { projectDevicesApi } from "@/api/projectDevices";
+import { diagramsApi } from "@/api/diagrams";
 import { TRADE_LABEL } from "@/constants/trades";
 
 // ── Signal-type colour palette ────────────────────────────────────────────────
-const SIGNAL_COLORS = {
+const DEFAULT_SIGNAL_COLORS = {
   Video:          "#3B82F6",
   Audio:          "#10B981",
   Control:        "#F59E0B",
@@ -51,6 +52,15 @@ const SIGNAL_COLORS = {
   Other:          "#9CA3AF",
 };
 
+const LS_COLOR_KEY = "zappy_signal_colors";
+function loadSavedColors() {
+  try { return { ...DEFAULT_SIGNAL_COLORS, ...JSON.parse(localStorage.getItem(LS_COLOR_KEY) || "{}") }; }
+  catch { return { ...DEFAULT_SIGNAL_COLORS }; }
+}
+function persistColors(map) {
+  try { localStorage.setItem(LS_COLOR_KEY, JSON.stringify(map)); } catch {/* no-op */}
+}
+
 const CONNECTION_TYPES = [
   "HDMI", "SDI", "DisplayPort", "VGA", "DVI",
   "RS232", "RS485", "RS422",
@@ -60,14 +70,43 @@ const CONNECTION_TYPES = [
   "Relay", "IR", "USB", "Other",
 ];
 
-const signalColor = (type) => SIGNAL_COLORS[type] || SIGNAL_COLORS.Other;
+// Accept an optional color map — falls back to defaults (used outside component scope)
+const signalColor = (type, colors) => {
+  const map = colors || DEFAULT_SIGNAL_COLORS;
+  return map[type] || map.Other || "#9CA3AF";
+};
 
 const NODE_WIDTH  = 240;
 const PORT_HEIGHT = 26;
 const NODE_BASE_H = 64;
 
-function nodeHeight(device) {
-  const ports = device.template?.ports || [];
+/** Expand matrix_ports groups into virtual individual port objects. */
+function expandMatrixPorts(template) {
+  const result = [];
+  for (const g of template?.matrix_ports || []) {
+    for (let i = 1; i <= (g.input_count || 0); i++) {
+      result.push({ id: `m_${g.signal_type}_in_${i}`,  label: `${g.signal_type} In ${i}`,   direction: "input",  signal_type: g.signal_type, connector_type: g.connector_type });
+    }
+    for (let i = 1; i <= (g.output_count || 0); i++) {
+      result.push({ id: `m_${g.signal_type}_out_${i}`, label: `${g.signal_type} Out ${i}`,  direction: "output", signal_type: g.signal_type, connector_type: g.connector_type });
+    }
+    for (let i = 1; i <= (g.io_count || 0); i++) {
+      result.push({ id: `m_${g.signal_type}_io_${i}`,  label: `${g.signal_type} I/O ${i}`,  direction: "io",     signal_type: g.signal_type, connector_type: g.connector_type });
+    }
+  }
+  return result;
+}
+
+/** All effective ports for a device (named ports + expanded matrix ports). */
+function effectivePorts(device) {
+  const named = device.template?.ports || [];
+  if (named.length > 0) return named;
+  if (device.template?.is_matrix) return expandMatrixPorts(device.template);
+  return named;
+}
+
+function nodeHeight(device, visiblePorts) {
+  const ports = visiblePorts ?? effectivePorts(device);
   const ins  = ports.filter((p) => p.direction === "input").length;
   const outs = ports.filter((p) => p.direction === "output").length;
   const ios  = ports.filter((p) => p.direction === "io").length;
@@ -93,12 +132,25 @@ function getAutoLayout(nodes, edges) {
 
 // ── Custom Device Node ────────────────────────────────────────────────────────
 function DeviceNode({ data }) {
-  const { device, canEdit, onEdit } = data;
+  const { device, canEdit, onEdit, hideUnused, connectedPortIds, signalColors: sc } = data;
   const t = device.template;
-  const ports  = t?.ports || [];
-  const inputs = ports.filter((p) => p.direction === "input");
+  let ports = effectivePorts(device);
+
+  // Feature 7: hide ports that have no connections when toggle is on
+  if (hideUnused && connectedPortIds) {
+    const used = new Set(connectedPortIds);
+    const filtered = ports.filter((p) => {
+      // IO ports use _in / _out suffix IDs
+      if (p.direction === "io") return used.has(`${p.id}_in`) || used.has(`${p.id}_out`);
+      return used.has(p.id);
+    });
+    // Only apply filter if it wouldn't hide everything (always show at least default handles)
+    if (filtered.length > 0) ports = filtered;
+  }
+
+  const inputs  = ports.filter((p) => p.direction === "input");
   const outputs = ports.filter((p) => p.direction === "output");
-  const ios    = ports.filter((p) => p.direction === "io");
+  const ios     = ports.filter((p) => p.direction === "io");
 
   return (
     <div
@@ -124,7 +176,7 @@ function DeviceNode({ data }) {
                 type="target"
                 position={Position.Left}
                 id={p.id}
-                style={{ ...handleStyle, background: signalColor(p.signal_type), left: -8 }}
+                style={{ ...handleStyle, background: signalColor(p.signal_type, sc), left: -8 }}
               />
               <span style={portLabelStyle}>{p.label}</span>
             </div>
@@ -135,12 +187,12 @@ function DeviceNode({ data }) {
                 type="target"
                 position={Position.Left}
                 id={`${p.id}_in`}
-                style={{ ...handleStyle, background: signalColor(p.signal_type), left: -8 }}
+                style={{ ...handleStyle, background: signalColor(p.signal_type, sc), left: -8 }}
               />
               <span style={portLabelStyle}>{p.label}</span>
             </div>
           ))}
-          {inputs.length === 0 && ios.length === 0 && ports.length === 0 && (
+          {inputs.length === 0 && ios.length === 0 && effectivePorts(device).length === 0 && (
             <Handle type="target" position={Position.Left} id="default_in" style={{ ...handleStyle, left: -8 }} />
           )}
         </div>
@@ -154,7 +206,7 @@ function DeviceNode({ data }) {
                 type="source"
                 position={Position.Right}
                 id={p.id}
-                style={{ ...handleStyle, background: signalColor(p.signal_type), right: -8 }}
+                style={{ ...handleStyle, background: signalColor(p.signal_type, sc), right: -8 }}
               />
             </div>
           ))}
@@ -165,11 +217,11 @@ function DeviceNode({ data }) {
                 type="source"
                 position={Position.Right}
                 id={`${p.id}_out`}
-                style={{ ...handleStyle, background: signalColor(p.signal_type), right: -8 }}
+                style={{ ...handleStyle, background: signalColor(p.signal_type, sc), right: -8 }}
               />
             </div>
           ))}
-          {outputs.length === 0 && ios.length === 0 && ports.length === 0 && (
+          {outputs.length === 0 && ios.length === 0 && effectivePorts(device).length === 0 && (
             <Handle type="source" position={Position.Right} id="default_out" style={{ ...handleStyle, right: -8 }} />
           )}
         </div>
@@ -178,7 +230,40 @@ function DeviceNode({ data }) {
   );
 }
 
-const nodeTypes = { device: DeviceNode };
+// ── Stub / Floating Endpoint Node ─────────────────────────────────────────────
+function StubNode({ data }) {
+  const { label, note, canEdit, onLabelChange, onNoteChange } = data;
+  return (
+    <div style={stubNodeStyle}>
+      <Handle type="target" position={Position.Left}  id="in"  style={{ ...handleStyle, left: -8,  background: "#9CA3AF" }} />
+      <div style={stubNodeInner}>
+        {canEdit ? (
+          <input
+            style={stubLabelInput}
+            value={label}
+            onChange={(e) => onLabelChange(e.target.value)}
+            placeholder="External device / endpoint…"
+          />
+        ) : (
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{label || "External"}</div>
+        )}
+        {canEdit ? (
+          <input
+            style={{ ...stubLabelInput, fontSize: 10, color: "#9CA3AF", marginTop: 2 }}
+            value={note || ""}
+            onChange={(e) => onNoteChange(e.target.value)}
+            placeholder="Port / note (optional)"
+          />
+        ) : (
+          note && <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 2 }}>{note}</div>
+        )}
+      </div>
+      <Handle type="source" position={Position.Right} id="out" style={{ ...handleStyle, right: -8, background: "#9CA3AF" }} />
+    </div>
+  );
+}
+
+const nodeTypes = { device: DeviceNode, stub: StubNode };
 
 // ── Main canvas component ─────────────────────────────────────────────────────
 export default function SignalFlowCanvas({
@@ -200,12 +285,51 @@ export default function SignalFlowCanvas({
   const [connType, setConnType]   = useState("HDMI");
   const [connNotes, setConnNotes] = useState("");
   const [connSaving, setConnSaving] = useState("");
-  const posTimers = useRef({});
+  const [hideUnusedPorts, setHideUnusedPorts] = useState(false);
+  const [isFullscreen, setIsFullscreen]       = useState(false);
+  const [signalColors, setSignalColors]       = useState(loadSavedColors);
+  const [showLegend, setShowLegend]           = useState(false);
+  const [stubNodes, setStubNodes]             = useState(() => diagram?.stub_nodes || []);
+  const posTimers   = useRef({});
+  const stubTimer   = useRef(null);
   const initialised = useRef(false);
 
+  // Sync stub nodes when diagram prop changes (trade switch)
+  useEffect(() => {
+    setStubNodes(diagram?.stub_nodes || []);
+  }, [diagram, trade]);
+
+  const saveStubs = useCallback((list) => {
+    clearTimeout(stubTimer.current);
+    stubTimer.current = setTimeout(() => {
+      diagramsApi.upsert(projectId, trade, { stub_nodes: list }).catch(() => {});
+    }, 600);
+  }, [projectId, trade]);
+
+  function addStubNode() {
+    const id = `stub-${Date.now().toString(36)}`;
+    const node = { id, label: "", note: "", position: { x: 80, y: 80 } };
+    const next = [...stubNodes, node];
+    setStubNodes(next);
+    saveStubs(next);
+  }
+
+  function updateStubField(id, field, value) {
+    setStubNodes((prev) => {
+      const next = prev.map((s) => s.id === id ? { ...s, [field]: value } : s);
+      saveStubs(next);
+      return next;
+    });
+  }
+
+  // Set of all port IDs that have at least one connection (for Feature 7)
+  const connectedPortIds = new Set(
+    connections.flatMap((c) => [c.source_port, c.destination_port].filter(Boolean))
+  );
+
   // ── Build nodes & edges from props ──────────────────────────────────────────
-  const buildNodes = useCallback(() =>
-    devices.map((d) => {
+  const buildNodes = useCallback(() => {
+    const deviceNodes = devices.map((d) => {
       const savedPos = d.node_position?.[trade];
       return {
         id: d.id,
@@ -216,22 +340,38 @@ export default function SignalFlowCanvas({
           canEdit,
           onEdit: onDeviceEdit,
           estHeight: nodeHeight(d),
+          hideUnused: hideUnusedPorts,
+          connectedPortIds,
+          signalColors,
         },
       };
-    }),
-  [devices, trade, canEdit, onDeviceEdit]);
+    });
+    const sNodes = stubNodes.map((s) => ({
+      id: s.id,
+      type: "stub",
+      position: s.position || { x: 80, y: 80 },
+      data: {
+        label: s.label || "",
+        note: s.note || "",
+        canEdit,
+        onLabelChange: (v) => updateStubField(s.id, "label", v),
+        onNoteChange:  (v) => updateStubField(s.id, "note",  v),
+      },
+    }));
+    return [...deviceNodes, ...sNodes];
+  },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [devices, trade, canEdit, onDeviceEdit, hideUnusedPorts, connectedPortIds, signalColors, stubNodes]);
 
   const buildEdges = useCallback(() =>
     connections
-      // Skip orphaned connections (device was deleted)
       .filter((c) => c.source_device_id && c.destination_device_id)
       .map((c) => {
-        // Infer edge colour from source port signal_type
-        // source_port / destination_port store the full handle ID (e.g. "portAbc" or "portAbc_in")
         const rawSrcPortId = (c.source_port || "").replace(/_out$/, "");
         const srcDevice    = devices.find((d) => d.id === c.source_device_id);
-        const srcPort      = (srcDevice?.template?.ports || []).find((p) => p.id === rawSrcPortId);
-        const color        = signalColor(srcPort?.signal_type);
+        const allPorts     = effectivePorts(srcDevice || {});
+        const srcPort      = allPorts.find((p) => p.id === rawSrcPortId);
+        const color        = signalColor(srcPort?.signal_type, signalColors);
         return {
           id: c.id,
           source: c.source_device_id,
@@ -245,7 +385,8 @@ export default function SignalFlowCanvas({
           data: { connectionId: c.id },
         };
       }),
-  [connections, devices]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [connections, devices, signalColors]);
 
   // Sync from props; auto-layout if no positions saved yet
   useEffect(() => {
@@ -270,11 +411,19 @@ export default function SignalFlowCanvas({
 
   // ── Drag-stop: save position (debounced 500ms) ───────────────────────────────
   const onNodeDragStop = useCallback((_, node) => {
+    if (node.type === "stub") {
+      setStubNodes((prev) => {
+        const next = prev.map((s) => s.id === node.id ? { ...s, position: node.position } : s);
+        saveStubs(next);
+        return next;
+      });
+      return;
+    }
     clearTimeout(posTimers.current[node.id]);
     posTimers.current[node.id] = setTimeout(() => {
       projectDevicesApi.updatePosition(projectId, node.id, trade, node.position).catch(() => {});
     }, 500);
-  }, [projectId, trade]);
+  }, [projectId, trade, saveStubs]);
 
   // ── Connect: open confirmation modal ─────────────────────────────────────────
   const onConnect = useCallback((params) => {
@@ -312,8 +461,8 @@ export default function SignalFlowCanvas({
       // Optimistically add edge
       const srcDevice = devices.find((d) => d.id === conn.source_device_id);
       const rawSrc    = (conn.source_port || "").replace(/_out$/, "");
-      const srcPort   = (srcDevice?.template?.ports || []).find((p) => p.id === rawSrc);
-      const color = signalColor(srcPort?.signal_type);
+      const srcPort   = effectivePorts(srcDevice || {}).find((p) => p.id === rawSrc);
+      const color = signalColor(srcPort?.signal_type, signalColors);
       setEdges((es) => addEdge({
         id: conn.id,
         source: conn.source_device_id,
@@ -345,6 +494,14 @@ export default function SignalFlowCanvas({
   // ── Delete nodes via keyboard ─────────────────────────────────────────────────
   const onNodesDelete = useCallback(async (deletedNodes) => {
     for (const node of deletedNodes) {
+      if (node.type === "stub") {
+        setStubNodes((prev) => {
+          const next = prev.filter((s) => s.id !== node.id);
+          saveStubs(next);
+          return next;
+        });
+        continue;
+      }
       if (window.confirm(`Remove "${node.data.device.label || node.data.device.template?.model || "device"}" from this project?`)) {
         try {
           await projectDevicesApi.remove(projectId, node.id);
@@ -352,16 +509,85 @@ export default function SignalFlowCanvas({
         } catch {/* no-op */}
       }
     }
-  }, [projectId, onDeviceDeleted]);
+  }, [projectId, onDeviceDeleted, saveStubs]);
 
   // ── Title block data ──────────────────────────────────────────────────────────
   const tradeLabel = TRADE_LABEL[trade] || trade;
   const companyName = diagram?.company_name_override || company?.name || "";
 
-  return (
+  const canvasContent = (
     <div style={{ display: "flex", gap: 12, height: "100%", minHeight: 0 }}>
       {/* Canvas */}
       <div style={canvasWrap}>
+        {/* Toolbar */}
+        <div style={canvasToolbar}>
+          <button
+            type="button"
+            style={{ ...toolbarBtn, background: hideUnusedPorts ? "#EFF6FF" : "transparent", borderColor: hideUnusedPorts ? "#93C5FD" : "#E5E7EB" }}
+            onClick={() => setHideUnusedPorts((v) => !v)}
+          >
+            {hideUnusedPorts ? "Show All Ports" : "Hide Unused Ports"}
+          </button>
+          <button
+            type="button"
+            style={{ ...toolbarBtn, background: showLegend ? "#EFF6FF" : "transparent", borderColor: showLegend ? "#93C5FD" : "#E5E7EB" }}
+            onClick={() => setShowLegend((v) => !v)}
+          >
+            Legend
+          </button>
+          {canEdit && (
+            <button
+              type="button"
+              style={toolbarBtn}
+              onClick={addStubNode}
+              title="Add a floating endpoint node (e.g. external device, BYOD connection)"
+            >
+              + Add Endpoint
+            </button>
+          )}
+          <button
+            type="button"
+            style={toolbarBtn}
+            onClick={() => setIsFullscreen((v) => !v)}
+          >
+            {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          </button>
+        </div>
+
+        {/* Legend panel */}
+        {showLegend && (
+          <div style={legendPanel}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
+              Signal Colors
+              <button
+                type="button"
+                style={{ float: "right", background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#6B7280" }}
+                onClick={() => { setSignalColors({ ...DEFAULT_SIGNAL_COLORS }); persistColors({}); }}
+                title="Reset to defaults"
+              >
+                Reset
+              </button>
+            </div>
+            {Object.entries(signalColors).map(([type, color]) => (
+              <div key={type} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => {
+                    const next = { ...signalColors, [type]: e.target.value };
+                    setSignalColors(next);
+                    persistColors(next);
+                  }}
+                  style={{ width: 24, height: 20, padding: 0, border: "1px solid #E5E7EB", borderRadius: 3, cursor: "pointer" }}
+                  title={`Change ${type} color`}
+                />
+                <span style={{ fontSize: 12, color: "#374151" }}>{type}</span>
+                <div style={{ flex: 1, height: 2, background: color, borderRadius: 1 }} />
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* ReactFlow needs an explicit-height parent — this wrapper provides it */}
         <div style={{ flex: 1, minHeight: 0 }}>
           <ReactFlow
@@ -404,7 +630,7 @@ export default function SignalFlowCanvas({
       </div>
 
       {/* Connection sidebar */}
-      <ConnectionSidebar connections={connections} devices={devices} />
+      <ConnectionSidebar connections={connections} devices={devices} stubNodes={stubNodes} />
 
       {/* Connection confirmation modal */}
       {connModal && (
@@ -434,6 +660,19 @@ export default function SignalFlowCanvas({
       )}
     </div>
   );
+
+  if (isFullscreen) {
+    return (
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        background: "#fff", display: "flex", flexDirection: "column",
+      }}>
+        {canvasContent}
+      </div>
+    );
+  }
+
+  return canvasContent;
 }
 
 // ── Connection endpoint helper (modal) ───────────────────────────────────────
@@ -452,10 +691,13 @@ function ConnEndpoint({ label, deviceId, handleId, devices }) {
 }
 
 // ── Sidebar connection table ─────────────────────────────────────────────────
-function ConnectionSidebar({ connections, devices }) {
+function ConnectionSidebar({ connections, devices, stubNodes = [] }) {
   const deviceName = (id) => {
     const d = devices.find((x) => x.id === id);
-    return d ? (d.label || `${d.template?.make} ${d.template?.model}`) : "—";
+    if (d) return d.label || `${d.template?.make} ${d.template?.model}`;
+    const s = stubNodes.find((x) => x.id === id);
+    if (s) return s.label || "External";
+    return "—";
   };
   const portLabel = (deviceId, portId) => {
     if (!portId) return null;
@@ -501,6 +743,64 @@ const canvasWrap = {
   border: "1px solid #E5E7EB",
   borderRadius: 8,
   overflow: "hidden",
+  position: "relative",
+};
+
+const canvasToolbar = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "6px 10px",
+  borderBottom: "1px solid #E5E7EB",
+  background: "#F9FAFB",
+  flexShrink: 0,
+};
+
+const toolbarBtn = {
+  fontSize: 12,
+  padding: "4px 10px",
+  borderRadius: 4,
+  border: "1px solid #E5E7EB",
+  background: "transparent",
+  cursor: "pointer",
+  color: "#374151",
+  whiteSpace: "nowrap",
+};
+
+const stubNodeStyle = {
+  background: "#FEF9EE",
+  border: "1.5px dashed #D97706",
+  borderRadius: 8,
+  minWidth: 180,
+  boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+  fontSize: 12,
+  padding: "6px 12px",
+};
+
+const stubNodeInner = { display: "flex", flexDirection: "column" };
+
+const stubLabelInput = {
+  border: "none",
+  background: "transparent",
+  fontSize: 12,
+  fontWeight: 600,
+  color: "#374151",
+  outline: "none",
+  width: "100%",
+  padding: 0,
+};
+
+const legendPanel = {
+  position: "absolute",
+  top: 44,
+  left: 10,
+  zIndex: 10,
+  background: "#fff",
+  border: "1px solid #E5E7EB",
+  borderRadius: 8,
+  padding: "10px 12px",
+  minWidth: 200,
+  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
 };
 
 const nodeStyle = {

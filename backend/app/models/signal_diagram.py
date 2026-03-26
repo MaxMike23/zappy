@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.extensions import db
 
 
@@ -35,6 +35,10 @@ class SignalDiagram(db.Model):
     drawn_by = db.Column(db.String(255), nullable=True)
     drawing_date = db.Column(db.Date, nullable=True)
 
+    # Stub/floating endpoint nodes (Features 4 & 8)
+    # [{ "id": str, "label": str, "note": str|null, "position": { "x": float, "y": float } }, ...]
+    stub_nodes = db.Column(JSONB, nullable=False, default=list)
+
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime(timezone=True), nullable=False,
@@ -57,4 +61,5 @@ class SignalDiagram(db.Model):
             "revision": self.revision,
             "drawn_by": self.drawn_by,
             "drawing_date": self.drawing_date.isoformat() if self.drawing_date else None,
+            "stub_nodes": self.stub_nodes or [],
         }

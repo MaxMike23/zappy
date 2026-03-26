@@ -147,20 +147,27 @@ def create_device():
     if category not in DeviceCategory.ALL:
         return jsonify({"error": f"Invalid category. Choose from: {DeviceCategory.ALL}"}), 400
 
-    ports = data.get("ports", [])
-    err = _validate_ports(ports)
-    if err:
-        return jsonify({"error": err}), 400
-
     has_ip = bool(data.get("has_ip", False))
     has_web_gui = bool(data.get("has_web_gui", False)) and has_ip
     is_matrix = bool(data.get("is_matrix", False))
+    is_rack = bool(data.get("is_rack", False))
+    rack_units = int(data["rack_units"]) if data.get("rack_units") else None
+    is_back_facing = bool(data.get("is_back_facing", False))
 
-    matrix_ports = data.get("matrix_ports", [])
-    if is_matrix:
-        err = _validate_matrix_ports(matrix_ports)
+    # Rack devices have no ports or matrix ports
+    if is_rack:
+        ports = []
+        matrix_ports = []
+    else:
+        ports = data.get("ports", [])
+        err = _validate_ports(ports)
         if err:
             return jsonify({"error": err}), 400
+        matrix_ports = data.get("matrix_ports", [])
+        if is_matrix:
+            err = _validate_matrix_ports(matrix_ports)
+            if err:
+                return jsonify({"error": err}), 400
 
     # Superadmins create global templates directly (no pending step)
     if is_superadmin():
@@ -170,6 +177,7 @@ def create_device():
             notes=data.get("notes"),
             is_pending=False,
             has_ip=has_ip, has_web_gui=has_web_gui, is_matrix=is_matrix,
+            is_rack=is_rack, rack_units=rack_units, is_back_facing=is_back_facing,
             ports=[_clean_port(p) for p in ports],
             matrix_ports=[_clean_matrix_group(g) for g in matrix_ports] if is_matrix else [],
         )
@@ -180,6 +188,7 @@ def create_device():
             notes=data.get("notes"),
             is_pending=False,
             has_ip=has_ip, has_web_gui=has_web_gui, is_matrix=is_matrix,
+            is_rack=is_rack, rack_units=rack_units, is_back_facing=is_back_facing,
             ports=[_clean_port(p) for p in ports],
             matrix_ports=[_clean_matrix_group(g) for g in matrix_ports] if is_matrix else [],
         )
@@ -230,16 +239,27 @@ def update_device(device_id):
         device.has_web_gui = bool(data["has_web_gui"]) and device.has_ip
     if "is_matrix" in data:
         device.is_matrix = bool(data["is_matrix"])
-    if "ports" in data:
-        err = _validate_ports(data["ports"])
-        if err:
-            return jsonify({"error": err}), 400
-        device.ports = [_clean_port(p) for p in data["ports"]]
-    if "matrix_ports" in data:
-        err = _validate_matrix_ports(data["matrix_ports"])
-        if err:
-            return jsonify({"error": err}), 400
-        device.matrix_ports = [_clean_matrix_group(g) for g in data["matrix_ports"]]
+    if "is_rack" in data:
+        device.is_rack = bool(data["is_rack"])
+        if device.is_rack:
+            # Clear ports/matrix when switching to rack mode
+            device.ports = []
+            device.matrix_ports = []
+    if "rack_units" in data:
+        device.rack_units = int(data["rack_units"]) if data["rack_units"] else None
+    if "is_back_facing" in data:
+        device.is_back_facing = bool(data["is_back_facing"])
+    if not device.is_rack:
+        if "ports" in data:
+            err = _validate_ports(data["ports"])
+            if err:
+                return jsonify({"error": err}), 400
+            device.ports = [_clean_port(p) for p in data["ports"]]
+        if "matrix_ports" in data:
+            err = _validate_matrix_ports(data["matrix_ports"])
+            if err:
+                return jsonify({"error": err}), 400
+            device.matrix_ports = [_clean_matrix_group(g) for g in data["matrix_ports"]]
 
     log_audit("updated", "device_template", device.id, company_id, current_user_id)
     db.session.commit()

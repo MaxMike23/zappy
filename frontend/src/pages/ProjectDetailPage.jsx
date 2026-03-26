@@ -13,6 +13,7 @@ import { projectDevicesApi } from "@/api/projectDevices";
 import { connectionsApi } from "@/api/connections";
 import { diagramsApi } from "@/api/diagrams";
 import SignalFlowCanvas from "@/components/SignalFlowCanvas";
+import RackLayout from "@/components/RackLayout";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
@@ -32,6 +33,7 @@ const RS232_STOP_BITS   = [1, 1.5, 2];
 
 const EMPTY_DEVICE_FORM = {
   trade: "",
+  extra_trades: [],
   label: "", room: "", rack_position: "",
   ip_addresses: [], stream_urls: [],
   username: "", password: "",
@@ -58,6 +60,7 @@ function hasRS232Ports(template) {
 function deviceFormFromInstance(device) {
   return {
     trade: device.trade || "",
+    extra_trades: device.extra_trades || [],
     label: device.label || "",
     room: device.room || "",
     rack_position: device.rack_position || "",
@@ -106,7 +109,7 @@ export default function ProjectDetailPage() {
   const fileInputRef = useRef(null);
 
   // ── tabs ────────────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState("details"); // "details" | "system_design"
+  const [activeTab, setActiveTab] = useState("details"); // "details" | "system_design" | "rack_layout"
 
   // ── system design state ─────────────────────────────────────────────────────
   const [projectDevices, setProjectDevices]   = useState([]);
@@ -127,11 +130,16 @@ export default function ProjectDetailPage() {
   const [diagramInfoOpen, setDiagramInfoOpen]   = useState(false);
   const [diagramInfoForm, setDiagramInfoForm]   = useState({});
   const [diagramInfoSaving, setDiagramInfoSaving] = useState(false);
+  const [devicesCollapsed, setDevicesCollapsed] = useState(false);
 
-  const tradesInUse = useMemo(
-    () => [...new Set(projectDevices.filter((d) => d.trade).map((d) => d.trade))],
-    [projectDevices],
-  );
+  const tradesInUse = useMemo(() => {
+    const all = [];
+    projectDevices.forEach((d) => {
+      if (d.trade) all.push(d.trade);
+      (d.extra_trades || []).forEach((t) => all.push(t));
+    });
+    return [...new Set(all)];
+  }, [projectDevices]);
 
   const { user, company } = useAuth();
   const canEdit = EDIT_ROLES.includes(user?.role);
@@ -389,6 +397,7 @@ export default function ProjectDetailPage() {
     setDeviceError("");
     const payload = {
       trade: deviceForm.trade || null,
+      extra_trades: deviceForm.extra_trades || [],
       label: deviceForm.label || null,
       room: deviceForm.room || null,
       rack_position: deviceForm.rack_position || null,
@@ -496,6 +505,7 @@ export default function ProjectDetailPage() {
         {[
           { key: "details",       label: "Project Details" },
           { key: "system_design", label: `System Design${projectDevices.length ? ` (${projectDevices.length})` : ""}` },
+          { key: "rack_layout",   label: `Rack Layout${projectDevices.filter((d) => d.template?.is_rack).length ? ` (${projectDevices.filter((d) => d.template?.is_rack).length})` : ""}` },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -712,13 +722,22 @@ export default function ProjectDetailPage() {
         <>
           {/* Devices table */}
           <div style={styles.section}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <h2 style={styles.sectionTitle}>Devices</h2>
-              {canEdit && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: devicesCollapsed ? 0 : 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <h2 style={{ ...styles.sectionTitle, margin: 0 }}>Devices</h2>
+                <button
+                  type="button"
+                  style={{ ...styles.secondaryBtn, padding: "2px 8px", fontSize: 12 }}
+                  onClick={() => setDevicesCollapsed((v) => !v)}
+                >
+                  {devicesCollapsed ? "▶ Show" : "▼ Hide"}
+                </button>
+              </div>
+              {canEdit && !devicesCollapsed && (
                 <button style={styles.secondaryBtn} onClick={openPicker}>+ Add Device</button>
               )}
             </div>
-            {projectDevices.length === 0 ? (
+            {!devicesCollapsed && (projectDevices.length === 0 ? (
               <EmptyState
                 message="No devices added yet."
                 action={canEdit ? "+ Add Device" : undefined}
@@ -777,7 +796,7 @@ export default function ProjectDetailPage() {
                   </tbody>
                 </table>
               </div>
-            )}
+            ))}
           </div>
 
           {/* Signal Flow Diagram */}
@@ -804,7 +823,7 @@ export default function ProjectDetailPage() {
                       onClick={() => handleTradeTabClick(t)}
                     >
                       {TRADE_LABEL[t] || t}
-                      <span style={tradeCount}>{projectDevices.filter((d) => d.trade === t).length}</span>
+                      <span style={tradeCount}>{projectDevices.filter((d) => d.trade === t || (d.extra_trades || []).includes(t)).length}</span>
                     </button>
                   ))}
                 </div>
@@ -815,7 +834,7 @@ export default function ProjectDetailPage() {
                     <SignalFlowCanvas
                       projectId={id}
                       trade={activeTrade}
-                      devices={projectDevices.filter((d) => d.trade === activeTrade)}
+                      devices={projectDevices.filter((d) => d.trade === activeTrade || (d.extra_trades || []).includes(activeTrade))}
                       connections={connections.filter((c) => c.trade === activeTrade)}
                       diagram={diagrams[activeTrade] || null}
                       canEdit={canEdit}
@@ -831,6 +850,17 @@ export default function ProjectDetailPage() {
             )}
           </div>
         </>
+      )}
+
+      {/* ── Rack Layout tab ──────────────────────────────────────────────────── */}
+      {activeTab === "rack_layout" && (
+        <RackLayout
+          projectId={id}
+          projectDevices={projectDevices}
+          onDeviceUpdate={(updated) =>
+            setProjectDevices((prev) => prev.map((d) => d.id === updated.id ? updated : d))
+          }
+        />
       )}
 
       {/* ── New Work Order Modal ──────────────────────────────────────────────── */}
@@ -1032,11 +1062,45 @@ export default function ProjectDetailPage() {
 
             {/* Identity */}
             <ModalSection label="Identity">
-              <FormField label="Trade" required>
+              <FormField label="Primary Trade" required>
                 <select style={styles.input} value={deviceForm.trade} onChange={(e) => setDeviceForm({ ...deviceForm, trade: e.target.value })}>
                   <option value="">— select trade —</option>
                   {TRADES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
                 </select>
+              </FormField>
+              <FormField label="Also Appears In (Additional Trades)">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "6px 0" }}>
+                  {TRADES.filter((t) => t.key !== deviceForm.trade).map((t) => {
+                    const checked = (deviceForm.extra_trades || []).includes(t.key);
+                    return (
+                      <label key={t.key} style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        fontSize: 12, color: "#374151", cursor: "pointer",
+                        background: checked ? "#EFF6FF" : "#F9FAFB",
+                        border: `1px solid ${checked ? "#93C5FD" : "#E5E7EB"}`,
+                        borderRadius: 4, padding: "3px 8px",
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const next = e.target.checked
+                              ? [...(deviceForm.extra_trades || []), t.key]
+                              : (deviceForm.extra_trades || []).filter((k) => k !== t.key);
+                            setDeviceForm({ ...deviceForm, extra_trades: next });
+                          }}
+                          style={{ marginRight: 2 }}
+                        />
+                        {t.label}
+                      </label>
+                    );
+                  })}
+                </div>
+                {(deviceForm.extra_trades || []).length > 0 && (
+                  <p style={{ fontSize: 11, color: "#6B7280", margin: "4px 0 0" }}>
+                    This device will appear in {(deviceForm.extra_trades.length + 1)} signal flow diagram{deviceForm.extra_trades.length > 0 ? "s" : ""}.
+                  </p>
+                )}
               </FormField>
               <FormField label="Label / Nickname">
                 <input style={styles.input} value={deviceForm.label} onChange={(e) => setDeviceForm({ ...deviceForm, label: e.target.value })} placeholder="e.g. Main Display, Rack AMP-1" />

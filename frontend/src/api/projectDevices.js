@@ -5,5 +5,6 @@ export const projectDevicesApi = {
   add:            (projectId, data)             => client.post(`/projects/${projectId}/devices`, data),
   update:         (projectId, id, data)         => client.put(`/projects/${projectId}/devices/${id}`, data),
   remove:         (projectId, id)               => client.delete(`/projects/${projectId}/devices/${id}`),
-  updatePosition: (projectId, id, trade, pos)   => client.patch(`/projects/${projectId}/devices/${id}/position`, { trade, position: pos }),
+  updatePosition:    (projectId, id, trade, pos)  => client.patch(`/projects/${projectId}/devices/${id}/position`, { trade, position: pos }),
+  updateRackPlacement: (projectId, id, data)      => client.patch(`/projects/${projectId}/devices/${id}/rack-placement`, data),
 };

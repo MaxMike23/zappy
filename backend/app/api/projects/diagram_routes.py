@@ -50,6 +50,12 @@ def upsert_diagram(project_id, trade):
         if field in data:
             setattr(diagram, field, data[field] or None)
 
+    if "stub_nodes" in data:
+        nodes = data["stub_nodes"]
+        if not isinstance(nodes, list):
+            return jsonify({"error": "stub_nodes must be an array"}), 400
+        diagram.stub_nodes = nodes
+
     if "drawing_date" in data:
         try:
             diagram.drawing_date = (
