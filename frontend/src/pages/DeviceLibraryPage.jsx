@@ -30,6 +30,8 @@ const CATEGORIES = [
   { value: "dry_contact",       label: "Dry Contact" },
   { value: "wet_contact",       label: "Wet Contact" },
   { value: "access_point",      label: "Access Point" },
+  { value: "bluetooth_audio",   label: "Bluetooth Audio" },
+  { value: "receiver",          label: "Receiver" },
   { value: "other",             label: "Other" },
 ];
 
@@ -41,7 +43,7 @@ const SIGNAL_TYPES = [
 // Connectors are filtered by signal type — users can also type a custom value.
 const CONNECTOR_MAP = {
   "Video":          ["HDMI", "Mini HDMI", "DisplayPort", "Mini DisplayPort", "SDI", "HD-SDI", "DVI-D", "VGA", "HDBaseT", "BNC / Coax", "USB-C (DP Alt Mode)"],
-  "Audio":          ["XLR", "TRS (1/4\")", "TS (1/4\")", "TRS (1/8\")", "TS (1/8\")", "RCA", "MIDI", "SpeakOn", "Speaker Terminal", "Phoenix", "Dante / AES67", "TOSLINK / Optical", "AES/EBU", "HDMI (ARC/eARC)", "USB-C"],
+  "Audio":          ["XLR", "TRS (1/4\")", "TS (1/4\")", "TRS (1/8\")", "TS (1/8\")", "RCA", "MIDI", "SpeakOn", "Speaker Terminal", "Phoenix", "Twisted Pair", "Dante / AES67", "TOSLINK / Optical", "AES/EBU", "HDMI (ARC/eARC)", "USB-C"],
   "Control":        ["RS232", "RS485", "RS422", "IR", "Relay", "USB-A", "USB-B", "USB-C", "Phoenix", "3-Pin Phoenix", "Ethernet (RJ45)"],
   "Network":        ["Ethernet (RJ45)", "PoE (RJ45)", "SFP", "SFP+", "Fiber (LC)", "Fiber (SC)", "Wi-Fi"],
   "Power":          ["IEC C5", "IEC C7 (Non-Polar)", "IEC C7 (Polar)", "IEC C13", "IEC C15", "IEC C19", "NEMA 5-15", "NEMA 5-20", "DC Barrel", "Terminal Block"],

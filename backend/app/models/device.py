@@ -26,6 +26,8 @@ class DeviceCategory:
     DRY_CONTACT = "dry_contact"
     WET_CONTACT = "wet_contact"
     ACCESS_POINT = "access_point"
+    BLUETOOTH_AUDIO = "bluetooth_audio"
+    RECEIVER = "receiver"
     OTHER = "other"
 
     ALL = [
@@ -33,7 +35,7 @@ class DeviceCategory:
         DSP, CONTROL_PROCESSOR, NETWORK_SWITCH,
         EXTENDER, ENCODER, DECODER, TOUCHPAD, MICROPHONE, SPEAKER,
         RELAY, INTRUSION_SYSTEM, ANTENNA_CELLULAR, FIRE_SYSTEM,
-        DRY_CONTACT, WET_CONTACT, ACCESS_POINT,
+        DRY_CONTACT, WET_CONTACT, ACCESS_POINT, BLUETOOTH_AUDIO, RECEIVER,
         OTHER,
     ]
 
@@ -59,6 +61,8 @@ class DeviceCategory:
         DRY_CONTACT: "Dry Contact",
         WET_CONTACT: "Wet Contact",
         ACCESS_POINT: "Access Point",
+        BLUETOOTH_AUDIO: "Bluetooth Audio",
+        RECEIVER: "Receiver",
         OTHER: "Other",
     }
 
