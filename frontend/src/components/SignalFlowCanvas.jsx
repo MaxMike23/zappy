@@ -83,15 +83,24 @@ const NODE_BASE_H = 64;
 /** Expand matrix_ports groups into virtual individual port objects. */
 function expandMatrixPorts(template) {
   const result = [];
+  // Track per-signal-type counters so ports across groups with the same signal type stay uniquely numbered
+  const counters = {};
   for (const g of template?.matrix_ports || []) {
-    for (let i = 1; i <= (g.input_count || 0); i++) {
-      result.push({ id: `m_${g.signal_type}_in_${i}`,  label: `${g.signal_type} In ${i}`,   direction: "input",  signal_type: g.signal_type, connector_type: g.connector_type });
+    const conn   = g.connector_type ? ` ${g.connector_type}` : "";
+    const prefix = `${g.signal_type}${conn}`;
+    const key    = prefix.toLowerCase().replace(/\s+/g, "_");
+    if (!counters[key]) counters[key] = { in: 0, out: 0, io: 0 };
+    for (let i = 0; i < (g.input_count || 0); i++) {
+      counters[key].in++;
+      result.push({ id: `m_${key}_in_${counters[key].in}`,  label: `${prefix} In ${counters[key].in}`,   direction: "input",  signal_type: g.signal_type, connector_type: g.connector_type });
     }
-    for (let i = 1; i <= (g.output_count || 0); i++) {
-      result.push({ id: `m_${g.signal_type}_out_${i}`, label: `${g.signal_type} Out ${i}`,  direction: "output", signal_type: g.signal_type, connector_type: g.connector_type });
+    for (let i = 0; i < (g.output_count || 0); i++) {
+      counters[key].out++;
+      result.push({ id: `m_${key}_out_${counters[key].out}`, label: `${prefix} Out ${counters[key].out}`, direction: "output", signal_type: g.signal_type, connector_type: g.connector_type });
     }
-    for (let i = 1; i <= (g.io_count || 0); i++) {
-      result.push({ id: `m_${g.signal_type}_io_${i}`,  label: `${g.signal_type} I/O ${i}`,  direction: "io",     signal_type: g.signal_type, connector_type: g.connector_type });
+    for (let i = 0; i < (g.io_count || 0); i++) {
+      counters[key].io++;
+      result.push({ id: `m_${key}_io_${counters[key].io}`,   label: `${prefix} I/O ${counters[key].io}`,  direction: "io",     signal_type: g.signal_type, connector_type: g.connector_type });
     }
   }
   return result;
@@ -99,10 +108,9 @@ function expandMatrixPorts(template) {
 
 /** All effective ports for a device (named ports + expanded matrix ports). */
 function effectivePorts(device) {
-  const named = device.template?.ports || [];
-  if (named.length > 0) return named;
-  if (device.template?.is_matrix) return expandMatrixPorts(device.template);
-  return named;
+  const named  = device.template?.ports || [];
+  const matrix = device.template?.is_matrix ? expandMatrixPorts(device.template) : [];
+  return [...named, ...matrix];
 }
 
 function nodeHeight(device, visiblePorts) {
@@ -137,15 +145,11 @@ function DeviceNode({ data }) {
   let ports = effectivePorts(device);
 
   // Feature 7: hide ports that have no connections when toggle is on
-  if (hideUnused && connectedPortIds) {
-    const used = new Set(connectedPortIds);
-    const filtered = ports.filter((p) => {
-      // IO ports use _in / _out suffix IDs
-      if (p.direction === "io") return used.has(`${p.id}_in`) || used.has(`${p.id}_out`);
-      return used.has(p.id);
+  if (hideUnused) {
+    ports = ports.filter((p) => {
+      if (p.direction === "io") return connectedPortIds.has(`${p.id}_in`) || connectedPortIds.has(`${p.id}_out`);
+      return connectedPortIds.has(p.id);
     });
-    // Only apply filter if it wouldn't hide everything (always show at least default handles)
-    if (filtered.length > 0) ports = filtered;
   }
 
   const inputs  = ports.filter((p) => p.direction === "input");
