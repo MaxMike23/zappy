@@ -82,6 +82,11 @@ def create_app(config_name: str = None) -> Flask:
     app.register_blueprint(attendance_bp,  url_prefix="/api/attendance")
     app.register_blueprint(devices_bp,     url_prefix="/api/devices/library")
 
+    # Public roadmap/suggestions — only registered when SHOW_PUBLIC_ROADMAP=true
+    if app.config.get("SHOW_PUBLIC_ROADMAP"):
+        from app.api.public import public_bp
+        app.register_blueprint(public_bp, url_prefix="/api/public")
+
     # Health check
     @app.get("/health")
     def health():
