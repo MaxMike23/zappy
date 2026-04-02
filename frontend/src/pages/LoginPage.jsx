@@ -102,7 +102,7 @@ export default function LoginPage() {
     if (roadmapText) return;
     setRoadmapLoading(true);
     try {
-      const res = await client.get("/api/public/roadmap");
+      const res = await client.get("/public/roadmap");
       setRoadmapText(res.data.content);
     } catch {
       setRoadmapText("# Roadmap unavailable\n\nCould not load the roadmap.");
@@ -116,7 +116,7 @@ export default function LoginPage() {
     setSuggestLoading(true);
     setSuggestStatus("");
     try {
-      await client.post("/api/public/suggestion", suggest);
+      await client.post("/public/suggestion", suggest);
       setSuggestStatus("ok");
       setSuggest({ name: "", email: "", message: "" });
     } catch (err) {

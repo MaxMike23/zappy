@@ -1,5 +1,6 @@
 import os
 import smtplib
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from flask import current_app, jsonify, request
 from . import public_bp
@@ -10,6 +11,17 @@ _ROADMAP_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 
 def _feature_enabled():
     return current_app.config.get("SHOW_PUBLIC_ROADMAP", False)
+
+
+def _smtp_connect():
+    host = current_app.config["SMTP_HOST"]
+    port = current_app.config["SMTP_PORT"]
+    user = current_app.config["SMTP_USER"]
+    pw   = current_app.config["SMTP_PASS"]
+    server = smtplib.SMTP(host, port, timeout=10)
+    server.starttls()
+    server.login(user, pw)
+    return server, user
 
 
 @public_bp.get("/roadmap")
@@ -29,7 +41,7 @@ def post_suggestion():
     if not _feature_enabled():
         return jsonify({"error": "Not found"}), 404
 
-    data = request.get_json(silent=True) or {}
+    data    = request.get_json(silent=True) or {}
     name    = (data.get("name") or "").strip()
     email   = (data.get("email") or "").strip()
     message = (data.get("message") or "").strip()
@@ -39,36 +51,44 @@ def post_suggestion():
 
     to_addr   = current_app.config["SUGGESTIONS_TO_EMAIL"]
     smtp_user = current_app.config["SMTP_USER"]
-    smtp_pass = current_app.config["SMTP_PASS"]
-    smtp_host = current_app.config["SMTP_HOST"]
-    smtp_port = current_app.config["SMTP_PORT"]
+    auto_reply_text = (current_app.config.get("SUGGESTION_AUTO_REPLY") or "").strip()
 
     if not to_addr or not smtp_user:
-        # Config incomplete — log and acknowledge without sending
         current_app.logger.warning("Suggestion received but SMTP is not configured.")
         return jsonify({"ok": True})
 
-    from_label = f"{name} via Zappy Feedback" if name else "Zappy Feedback"
-    reply_to   = email if email else smtp_user
+    # ── Build notification email to inbox ────────────────────────────────────
     subject    = f"Zappy suggestion{f' from {name}' if name else ''}"
     body_lines = []
     if name:
-        body_lines.append(f"Name: {name}")
+        body_lines.append(f"Name:    {name}")
     if email:
-        body_lines.append(f"Email: {email}")
+        body_lines.append(f"Email:   {email}")
     body_lines += ["", message]
 
-    msg = MIMEText("\n".join(body_lines), "plain", "utf-8")
-    msg["Subject"] = subject
-    msg["From"]    = f"{from_label} <{smtp_user}>"
-    msg["To"]      = to_addr
-    msg["Reply-To"] = reply_to
+    notif = MIMEText("\n".join(body_lines), "plain", "utf-8")
+    notif["Subject"]  = subject
+    notif["From"]     = f"Zappy Feedback <{smtp_user}>"
+    notif["To"]       = to_addr
+    if email:
+        notif["Reply-To"] = f"{name} <{email}>" if name else email
 
     try:
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(smtp_user, [to_addr], msg.as_string())
+        server, from_addr = _smtp_connect()
+        with server:
+            server.sendmail(from_addr, [to_addr], notif.as_string())
+
+            # ── Auto-reply to submitter (only if they gave an email) ──────────
+            if email and auto_reply_text:
+                greeting = f"Hi {name},\n\n" if name else "Hi,\n\n"
+                reply_body = greeting + auto_reply_text
+
+                reply = MIMEText(reply_body, "plain", "utf-8")
+                reply["Subject"] = "Re: Your Zappy suggestion"
+                reply["From"]    = f"Zappy <{smtp_user}>"
+                reply["To"]      = f"{name} <{email}>" if name else email
+                server.sendmail(from_addr, [email], reply.as_string())
+
     except Exception as exc:
         current_app.logger.error("Failed to send suggestion email: %s", exc)
         return jsonify({"error": "Could not send message. Please try again later."}), 500
