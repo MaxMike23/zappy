@@ -1,6 +1,19 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import logoMark from "@/assets/logo-mark.png";
+import logoMarkAlt from "@/assets/logo-mark-alt.png";
+
+// Returns true if a hex color (e.g. "#111827") is perceived as dark.
+// Uses the W3C relative luminance formula so it works for any future sidebar color.
+function isDark(hex) {
+  const c = hex.replace("#", "");
+  const r = parseInt(c.slice(0, 2), 16) / 255;
+  const g = parseInt(c.slice(2, 4), 16) / 255;
+  const b = parseInt(c.slice(4, 6), 16) / 255;
+  const toLinear = (v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  const L = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  return L < 0.179; // threshold: below this is perceptually dark
+}
 
 const NAV_ITEMS = [
   { to: "/dashboard",   label: "Dashboard",   roles: ["company_admin", "manager", "technician", "sales", "superadmin"] },
@@ -23,7 +36,7 @@ export default function Sidebar() {
   return (
     <aside className="app-sidebar" style={styles.sidebar}>
       <div style={styles.logoWrap}>
-        <img src={logoMark} alt="Zappy" style={styles.logoImg} />
+        <img src={isDark(SIDEBAR_BG) ? logoMarkAlt : logoMark} alt="Zappy" style={styles.logoImg} />
       </div>
 
       <nav style={styles.nav}>
@@ -50,11 +63,13 @@ export default function Sidebar() {
   );
 }
 
+const SIDEBAR_BG = "#111827";
+
 const styles = {
   sidebar: {
     width: 220,
     minHeight: "100vh",
-    background: "#111827",
+    background: SIDEBAR_BG,
     color: "#F9FAFB",
     flexDirection: "column",
   },
