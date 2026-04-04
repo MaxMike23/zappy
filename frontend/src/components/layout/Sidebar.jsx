@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import logoMark from "@/assets/logo-mark.png";
 
 const NAV_ITEMS = [
   { to: "/dashboard",   label: "Dashboard",   roles: ["company_admin", "manager", "technician", "sales", "superadmin"] },
@@ -21,7 +22,9 @@ export default function Sidebar() {
 
   return (
     <aside className="app-sidebar" style={styles.sidebar}>
-      <div style={styles.logo}>Zappy</div>
+      <div style={styles.logoWrap}>
+        <img src={logoMark} alt="Zappy" style={styles.logoImg} />
+      </div>
 
       <nav style={styles.nav}>
         {visibleItems.map((item) => (
@@ -55,12 +58,15 @@ const styles = {
     color: "#F9FAFB",
     flexDirection: "column",
   },
-  logo: {
-    fontSize: 22,
-    fontWeight: 700,
-    padding: "24px 20px 16px",
-    letterSpacing: "-0.5px",
-    color: "#FFFFFF",
+  logoWrap: {
+    padding: "20px 20px 12px",
+  },
+  logoImg: {
+    display: "block",
+    maxWidth: "100%",
+    height: "auto",
+    maxHeight: 48,
+    objectFit: "contain",
   },
   nav: {
     flex: 1,

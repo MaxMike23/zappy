@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import client from "@/api/client";
+import logoSrc from "@/assets/logo.png";
 
 const SHOW_ROADMAP = import.meta.env.VITE_SHOW_ROADMAP === "true";
 
@@ -129,8 +130,7 @@ export default function LoginPage() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <h1 style={styles.title}>Zappy</h1>
-        <p style={styles.subtitle}>Sign in to your workspace</p>
+        <img src={logoSrc} alt="Zappy" style={styles.logo} />
 
         {error && <div style={styles.error}>{error}</div>}
 
@@ -273,16 +273,11 @@ const styles = {
     maxWidth: 400,
     boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 700,
-    margin: "0 0 4px",
-    color: "#111827",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#6B7280",
-    margin: "0 0 24px",
+  logo: {
+    display: "block",
+    maxWidth: "100%",
+    height: "auto",
+    marginBottom: 24,
   },
   error: {
     background: "#FEF2F2",
